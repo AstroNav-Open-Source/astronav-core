@@ -10,7 +10,7 @@ def radec_to_vec(ra_deg, dec_deg):
 
 catalog_vectors = np.array([radec_to_vec(ra, dec) for ra, dec in zip(catalog['RAICRS'], catalog['DEICRS'])])
 
-FOV = 90 # FOV in degrees - change to whatever you want
+FOV = 70 # FOV in degrees - change to whatever you want
 
 # Vectorized pairwise dot products
 n = len(catalog_vectors)
@@ -21,5 +21,5 @@ i_idx, j_idx = np.triu_indices(n, k=1)
 mask = np.abs(angles[i_idx, j_idx]) <= FOV
 pair_db = {(int(i), int(j)): float(angles[i, j]) for i, j in zip(i_idx[mask], j_idx[mask])}
 
-print(pair_db)
-print(n)
+# print(pair_db)
+# print(n)

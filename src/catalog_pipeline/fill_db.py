@@ -23,6 +23,7 @@ c.execute('''create table if not exists pairs (
 c.execute('create index if not exists idx_pairs_star1_id on pairs(star1_id)')
 c.execute('create index if not exists idx_pairs_star2_id on pairs(star2_id)')
 c.execute('create index if not exists idx_pairs_angle on pairs(angle)')
+c.execute('create index if not exists idx_stars_vmag on stars(vmag)')
 
 def insert_stars():
     for row in catalog:
