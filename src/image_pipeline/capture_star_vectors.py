@@ -2,8 +2,10 @@ import cv2
 import numpy as np
 from skimage import feature
 import matplotlib.pyplot as plt
+from star_frame import StarFrame
 
-def detect_stars(image_path, threshold_val=200, max_sigma=30, blob_threshold=0.5):
+
+def detect_stars(image_path, threshold_val=200, max_sigma=30, blob_threshold=0.53):
     # Load grayscale
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
@@ -69,5 +71,12 @@ img, thresh, stars = detect_stars("starfield.png")
 print(f"Detected {len(stars)} stars.")
 for i, s in enumerate(stars[:5]):
     print(f"Star {i}: Pos={s['position']}, Intensity={s['intensity']:.2f}, Vector={s['vector']}")
+
+if stars:
+     sf = StarFrame( stars)
+     print(sf.intensities())
+     print(sf.pair_list_intencity())
+else:
+     print("No stars to process")
 
 visualize_results(img, thresh, stars)
