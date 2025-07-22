@@ -1,3 +1,4 @@
 track/
 __pycache__/
 .venv/
+star_catalog.db

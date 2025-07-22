@@ -8,25 +8,18 @@ def radec_to_vec(ra_deg, dec_deg):
     dec = np.radians(dec_deg)
     return np.array([np.cos(dec)*np.cos(ra), np.cos(dec)*np.sin(ra), np.sin(dec)])
 
-catalog_vectors = []
-for ra,dec in zip(catalog['RAICRS'], catalog['DEICRS']):
-    catalog_vectors.append(radec_to_vec(ra, dec))
-
-catalog_vectors = np.array(catalog_vectors)
+catalog_vectors = np.array([radec_to_vec(ra, dec) for ra, dec in zip(catalog['RAICRS'], catalog['DEICRS'])])
 
 FOV = 90 # FOV in degrees - change to whatever you want
 
-# Precompute angular distances for all pairs [dict]
-pair_db = {}
+# Vectorized pairwise dot products
 n = len(catalog_vectors)
-for i in range(n):
-    for j in range(i+1, n):
-        dot = np.dot(catalog_vectors[i], catalog_vectors[j])
-        dot = np.clip(dot, -1, 1)
-        theta = np.degrees(np.arccos(dot))
-        if abs(theta) <= FOV:
-            pair_db[(i, j)] = theta
+dots = np.dot(catalog_vectors, catalog_vectors.T)
+np.clip(dots, -1, 1, out=dots)
+angles = np.degrees(np.arccos(dots))
+i_idx, j_idx = np.triu_indices(n, k=1)
+mask = np.abs(angles[i_idx, j_idx]) <= FOV
+pair_db = {(int(i), int(j)): float(angles[i, j]) for i, j in zip(i_idx[mask], j_idx[mask])}
 
 print(pair_db)
-
 print(n)
