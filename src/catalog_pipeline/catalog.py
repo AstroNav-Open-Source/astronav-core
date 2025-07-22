@@ -7,4 +7,9 @@ vizier = Vizier(columns=["HIP", "RAICRS", "DEICRS", "Vmag"],
                 column_filters={"Vmag": "<6"}, row_limit=-1)
 catalog = vizier.get_catalogs("I/239/hip_main")[0]
 
+# Filter out rows with masked RAICRS or DEICRS
+if hasattr(catalog['RAICRS'], 'mask') and hasattr(catalog['DEICRS'], 'mask'):
+    valid = ~catalog['RAICRS'].mask & ~catalog['DEICRS'].mask
+    catalog = catalog[valid]
+
 print(catalog)
