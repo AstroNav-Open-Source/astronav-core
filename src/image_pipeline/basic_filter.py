@@ -33,8 +33,7 @@ star_angles = star_vectors @ np.array(star_vectors).T
 
 angle_matrix_rad = np.arccos(np.clip(star_angles, -1.0, 1.0))
 angle_matrix_deg = np.degrees(angle_matrix_rad)
-
-print(angle_matrix_deg.shape)
+print("Dimensions of angle matrix:", angle_matrix_deg.shape)
 
 fig, axs = plt.subplots(1, 3, figsize=(15, 5))  # 1 row, 3 columns
 axs[0].imshow(img, cmap='gray')
