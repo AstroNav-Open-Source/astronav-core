@@ -14,8 +14,27 @@ blobs[:, 2] = blobs[:, 2] * (2 ** 0.5)
 
 print(f"Detected {len(blobs)} blobs.")
 
+# Calculate the vector of each blob
+focal_length = 1000 # arducam is 4.7mm
+cx, cy = 1280, 960 
 
 
+star_vectors = []
+for y, x, _ in blobs:
+    dx = x - cx
+    dy = y - cy
+    v = np.array([dx, dy, focal_length])
+    v_unit = v / np.linalg.norm(v)
+    star_vectors.append(v_unit) 
+
+
+# Compute the dotproducts between the unit vectors
+star_angles = star_vectors @ np.array(star_vectors).T
+
+angle_matrix_rad = np.arccos(np.clip(star_angles, -1.0, 1.0))
+angle_matrix_deg = np.degrees(angle_matrix_rad)
+
+print(angle_matrix_deg.shape)
 
 fig, axs = plt.subplots(1, 3, figsize=(15, 5))  # 1 row, 3 columns
 axs[0].imshow(img, cmap='gray')
