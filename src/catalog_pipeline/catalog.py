@@ -12,4 +12,5 @@ if hasattr(catalog['RAICRS'], 'mask') and hasattr(catalog['DEICRS'], 'mask'):
     valid = ~catalog['RAICRS'].mask & ~catalog['DEICRS'].mask
     catalog = catalog[valid]
 
-print(catalog)
+if __name__ == "__main__":
+    print(catalog)

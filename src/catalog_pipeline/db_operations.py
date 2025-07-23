@@ -17,8 +17,6 @@ def get_pairs_by_angle(min_angle, max_angle, db_path='star_catalog.db', entries_
 def get_pairs_by_angle_error_margin(angle, error, db_path='star_catalog.db', entries_limit=0):
     return get_pairs_by_angle(angle - error, angle + error, db_path, entries_limit)
 
-print(get_pairs_by_angle_error_margin(30, 0.001, entries_limit=3))
-
 def get_angular_distance_between_stars(star1_id, star2_id, db_path='star_catalog.db'):
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
@@ -44,6 +42,7 @@ def get_star_info(star_id, db_path='star_catalog.db'):
     conn.close()
     return results
 
-print(get_star_info(50935))
-
-print(get_angular_distance_between_stars(50935, 59774))
+if __name__ == "__main__":
+    print(get_pairs_by_angle_error_margin(30, 0.001, entries_limit=3))
+    print(get_star_info(50935))
+    print(get_angular_distance_between_stars(50935, 59774))
