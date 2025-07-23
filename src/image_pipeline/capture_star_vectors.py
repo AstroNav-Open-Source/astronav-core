@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from star_frame import StarFrame
 
 
-def detect_stars(image_path, threshold_val=200, max_sigma=30, blob_threshold=0.53):
+def detect_stars(image_path, threshold_val=150, max_sigma=30, blob_threshold=0.4):
     # Load grayscale
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
