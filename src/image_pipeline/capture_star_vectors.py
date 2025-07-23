@@ -22,7 +22,7 @@ def detect_stars(image_path, threshold_val=200, max_sigma=30, blob_threshold=0.5
     blobs[:, 2] = blobs[:, 2] * np.sqrt(2)  # Convert sigma to radius
 
     star_data = []
-    fov_deg = 65  # Approx horizontal FOV of ArduCam
+    fov_deg = 70  # Approx horizontal FOV of ArduCam
     focal_length = w / (2 * np.tan(np.deg2rad(fov_deg / 2)))  # in pixels
 
     for y, x, r in blobs:
@@ -67,16 +67,17 @@ def visualize_results(img, thresh, star_data):
     plt.tight_layout()
     plt.show()
 
-img, thresh, stars = detect_stars("starfield.png")
-print(f"Detected {len(stars)} stars.")
-for i, s in enumerate(stars[:5]):
-    print(f"Star {i}: Pos={s['position']}, Intensity={s['intensity']:.2f}, Vector={s['vector']}")
+if __name__ == "__main__":
+    img, thresh, stars = detect_stars("starfield.png")
+    print(f"Detected {len(stars)} stars.")
+    for i, s in enumerate(stars[:5]):
+        print(f"Star {i}: Pos={s['position']}, Intensity={s['intensity']:.2f}, Vector={s['vector']}")
 
-if stars:
-     sf = StarFrame( stars)
-     print(sf.intensities())
-     # print(sf.pair_list_intencity())
-else:
-     print("No stars to process")
+    if stars:
+        sf = StarFrame( stars)
+        print(sf.intensities())
+        print(sf.pair_list_intensity())
+    else:
+        print("No stars to process")
 
-visualize_results(img, thresh, stars)
+    visualize_results(img, thresh, stars)

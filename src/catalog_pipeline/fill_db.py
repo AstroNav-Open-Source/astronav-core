@@ -12,10 +12,10 @@ c.execute('''create table if not exists stars (
     vmag real
 )''')
 c.execute('''create table if not exists pairs (
+    id integer primary key autoincrement,
     star1_id integer,
     star2_id integer,
     angle real,
-    primary key (star1_id, star2_id),
     foreign key (star1_id) references stars(hip),
     foreign key (star2_id) references stars(hip)
 )''')
