@@ -10,6 +10,8 @@ def radec_to_vec(ra_deg, dec_deg):
 
 catalog_vectors = np.array([radec_to_vec(ra, dec) for ra, dec in zip(catalog['RAICRS'], catalog['DEICRS'])])
 
+hip_numbers = np.array(catalog['HIP'])
+
 FOV = 70 # FOV in degrees - change to whatever you want
 
 # Vectorized pairwise dot products
@@ -19,7 +21,7 @@ np.clip(dots, -1, 1, out=dots)
 angles = np.degrees(np.arccos(dots))
 i_idx, j_idx = np.triu_indices(n, k=1)
 mask = np.abs(angles[i_idx, j_idx]) <= FOV
-pair_db = {(int(i), int(j)): float(angles[i, j]) for i, j in zip(i_idx[mask], j_idx[mask])}
+pair_db = {(int(hip_numbers[i]), int(hip_numbers[j])): float(angles[i, j]) for i, j in zip(i_idx[mask], j_idx[mask])}
 
 # print(pair_db)
 # print(n)

@@ -16,8 +16,8 @@ c.execute('''create table if not exists pairs (
     star2_id integer,
     angle real,
     primary key (star1_id, star2_id),
-    foreign key (star1_id) references stars(HIP),
-    foreign key (star2_id) references stars(HIP)
+    foreign key (star1_id) references stars(hip),
+    foreign key (star2_id) references stars(hip)
 )''')
 
 c.execute('create index if not exists idx_pairs_star1_id on pairs(star1_id)')
