@@ -20,7 +20,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Extract unit vectors
-    detected_vectors = [star["vector"] for star in star_data]
+    detected_vectors = [star["vector"] for star in star_data[:11]]
     # Identify stars
     angle_tolerance = 0.1  # degrees, can be tuned
     matches = identify_stars_from_vectors(detected_vectors, angle_tolerance=angle_tolerance, limit=20)
@@ -29,3 +29,18 @@ if __name__ == "__main__":
     print("\n--- Identified Stars from Image ---")
     for det_idx, (hip, info) in identified.items():
         print(f"Detected star {det_idx}: HIP {hip}, info: {info}") 
+
+    # --- QUEST Attitude Determination ---
+    from quest import quest_algorithm
+    # Prepare body_vectors (detected) and inertial_vectors (catalog)
+    body_vectors = np.array(detected_vectors)
+    # Try to get catalog vectors from identified info, fallback to dummy if not available
+    try:
+        inertial_vectors = np.array([info["vector"] for _, info in identified.values()])
+        if inertial_vectors.shape != body_vectors.shape:
+            raise ValueError
+    except Exception:
+        print("Warning: Could not extract catalog vectors from identified info. Using dummy inertial vectors.")
+        inertial_vectors = np.eye(3)[:len(body_vectors)]
+    R = quest_algorithm(body_vectors, inertial_vectors)
+    print("\nQUEST rotation matrix (image to catalog):\n", R) 

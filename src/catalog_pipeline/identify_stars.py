@@ -3,6 +3,7 @@ import sqlite3
 import bisect
 import os
 from db_operations import get_star_info
+from scipy.optimize import linear_sum_assignment  # Added for Hungarian algorithm
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'star_catalog.db')
 
@@ -43,7 +44,8 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=0.1, db_path=D
     """
     Given detected star unit vectors (shape: N x 3),
     identify likely catalog matches for each detected star by matching pairwise angles.
-    Returns: dict mapping detected star index to list of (catalog HIP, vote count)
+    Uses an assignment matrix and Hungarian algorithm for optimal assignment.
+    Returns: dict mapping detected star index to (catalog HIP, vote count)
     """
     import itertools
     detected_vectors = np.asarray(detected_vectors)
@@ -57,22 +59,45 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=0.1, db_path=D
         dot = np.clip(np.dot(v1, v2), -1, 1)
         angle = np.degrees(np.arccos(dot))
         detected_angles.append((i, j, angle))
-
+    
     # For each detected pair, query catalog pairs
-    votes = {idx: {} for idx in range(n)}
+    # Build a set of all possible catalog star IDs from the matches
+    catalog_star_ids = set()
+    pair_matches = dict()  # (i, j) -> list of (star1_id, star2_id)
     for i, j, angle in detected_angles:
         matches = query_star_pairs(angle, angle_tolerance, db_path=db_path, limit=limit)
-        for star1_id, star2_id, cat_angle in matches:
-            # Vote for both possible assignments (i->star1, j->star2) and (i->star2, j->star1)
-            for (det_idx, cat_id) in [(i, star1_id), (j, star2_id), (i, star2_id), (j, star1_id)]:
-                votes[det_idx][cat_id] = votes[det_idx].get(cat_id, 0) + 1
+        pair_matches[(i, j)] = matches
+        for star1_id, star2_id, _ in matches:
+            catalog_star_ids.add(star1_id)
+            catalog_star_ids.add(star2_id)
+    catalog_star_ids = sorted(list(catalog_star_ids))
+    m = len(catalog_star_ids)
+    cat_id_to_idx = {cat_id: idx for idx, cat_id in enumerate(catalog_star_ids)}
+    idx_to_cat_id = {idx: cat_id for idx, cat_id in enumerate(catalog_star_ids)}
 
-    # For each detected star, rank catalog candidates by votes
-    ranked_matches = {}
-    for det_idx, cat_votes in votes.items():
-        ranked = sorted(cat_votes.items(), key=lambda x: -x[1])
-        ranked_matches[det_idx] = ranked
-    return ranked_matches
+    # Build assignment matrix: rows=detected stars, cols=catalog stars
+    # Each entry (i, j) = number of pairwise matches if detected star i is assigned to catalog star j
+    assignment_matrix = np.zeros((n, m), dtype=int)
+    for (i, j), matches in pair_matches.items():
+        for star1_id, star2_id, _ in matches:
+            idx1 = cat_id_to_idx[star1_id]
+            idx2 = cat_id_to_idx[star2_id]
+            assignment_matrix[i, idx1] += 1
+            assignment_matrix[j, idx2] += 1
+            assignment_matrix[i, idx2] += 1
+            assignment_matrix[j, idx1] += 1
+
+    # Hungarian algorithm finds minimum cost, so use negative of matches as cost
+    cost_matrix = -assignment_matrix
+    row_ind, col_ind = linear_sum_assignment(cost_matrix)
+
+    # Prepare result: for each detected star, the assigned catalog star and the number of pairwise matches
+    result = {}
+    for det_idx, cat_col in zip(row_ind, col_ind):
+        cat_id = idx_to_cat_id[cat_col]
+        votes = assignment_matrix[det_idx, cat_col]
+        result[det_idx] = [(cat_id, votes)]
+    return result
 
 def get_identified_star_info(matches, db_path=DB_PATH):
     identified = {}
