@@ -75,7 +75,7 @@ for i, s in enumerate(stars[:5]):
 if stars:
      sf = StarFrame( stars)
      print(sf.intensities())
-     print(sf.pair_list_intencity())
+     # print(sf.pair_list_intencity())
 else:
      print("No stars to process")
 
