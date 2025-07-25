@@ -2,12 +2,12 @@ import cv2
 import numpy as np
 from skimage import feature
 import matplotlib.pyplot as plt
-from star_frame import StarFrame
+from image_pipeline.star_frame import StarFrame
 import sys
 from pathlib import Path
 
 
-def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500):
+def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, visualize=False):
      # Load grayscale
      img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
      if img is None:
@@ -49,6 +49,8 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500):
                     "vector": v_unit
                })
 
+     if visualize:
+          visualize_results(img, thresh, star_data)	
      return img, thresh, star_data
 
 

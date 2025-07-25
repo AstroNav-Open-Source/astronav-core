@@ -2,7 +2,7 @@ import numpy as np
 import sqlite3
 import bisect
 import os
-from db_operations import get_star_info
+from .db_operations import get_star_info
 from scipy.optimize import linear_sum_assignment  # Added for Hungarian algorithm
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'star_catalog.db')
