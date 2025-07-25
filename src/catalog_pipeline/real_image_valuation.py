@@ -10,8 +10,8 @@ from capture_star_vectors import detect_stars
 from identify_stars import identify_stars_from_vectors, get_identified_star_info
 from radec_to_vec import radec_to_vec
 
-if __name__ == "__main__":
-    image_path = "starfield.png"
+def lost_in_space(image_path):
+    image_path = image_path
     print(f"Processing image: {image_path}")
     img, thresh, star_data = detect_stars(image_path)
     print(f"Detected {len(star_data)} stars.")
@@ -56,5 +56,10 @@ if __name__ == "__main__":
     R = get_rotation_matrix_from_quaternion(Q)
     print("\nQUEST rotational matrix\n", R)
 
+    return Q, R
+
     # print("\nQUEST quaternion error factor:")
     # test_quaternion_reprojection(Q, body_vectors, inertial_vectors, verbose=True)
+
+if __name__ == "__main__":
+    lost_in_space("starfield.png")
