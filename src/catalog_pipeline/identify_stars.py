@@ -7,6 +7,8 @@ from scipy.optimize import linear_sum_assignment  # Added for Hungarian algorith
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'star_catalog.db')
 
+EARLY_SUBGRAPH_STAR_EXIT = 10000
+
 # def get_all_angles(db_path=DB_PATH):
 #     conn = sqlite3.connect(db_path)
 #     c = conn.cursor()
@@ -75,17 +77,84 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=0.1, db_path=D
     cat_id_to_idx = {cat_id: idx for idx, cat_id in enumerate(catalog_star_ids)}
     idx_to_cat_id = {idx: cat_id for idx, cat_id in enumerate(catalog_star_ids)}
 
-    # Build assignment matrix: rows=detected stars, cols=catalog stars
-    # Each entry (i, j) = number of pairwise matches if detected star i is assigned to catalog star j
-    assignment_matrix = np.zeros((n, m), dtype=int)
+    # Build possible catalog star candidates for each detected star
+    from collections import defaultdict
+    import itertools
+    det_to_cat_candidates = defaultdict(set)
     for (i, j), matches in pair_matches.items():
         for star1_id, star2_id, _ in matches:
-            idx1 = cat_id_to_idx[star1_id]
-            idx2 = cat_id_to_idx[star2_id]
-            assignment_matrix[i, idx1] += 1
-            assignment_matrix[j, idx2] += 1
-            assignment_matrix[i, idx2] += 1
-            assignment_matrix[j, idx1] += 1
+            det_to_cat_candidates[i].add(star1_id)
+            det_to_cat_candidates[j].add(star2_id)
+            det_to_cat_candidates[i].add(star2_id)
+            det_to_cat_candidates[j].add(star1_id)
+    
+    # Build assignment matrix: rows=detected stars, cols=catalog stars
+    assignment_matrix = np.zeros((n, m), dtype=int)
+
+    # Backtracking approach for efficient assignment search
+    candidate_lists = [list(det_to_cat_candidates[i]) for i in range(n)]
+    if all(candidate_lists):
+        # Order detected stars by fewest candidates first
+        det_order = sorted(range(n), key=lambda i: len(candidate_lists[i]))
+        max_assignments = EARLY_SUBGRAPH_STAR_EXIT  # Early exit limit
+        assignments_checked = [0]  # Counter
+
+        def backtrack(assignment, used_catalog_stars, depth):
+            if assignments_checked[0] >= max_assignments:
+                return
+            if depth == n:
+                # Check all pairs for consistency
+                valid = True
+                for (i, j), matches in pair_matches.items():
+                    cat_i = assignment[i]
+                    cat_j = assignment[j]
+                    found = False
+                    for star1_id, star2_id, _ in matches:
+                        if (cat_i == star1_id and cat_j == star2_id) or (cat_i == star2_id and cat_j == star1_id):
+                            found = True
+                            break
+                    if not found:
+                        valid = False
+                        break
+                if valid:
+                    for det_idx, cat_id in assignment.items():
+                        assignment_matrix[det_idx, cat_id_to_idx[cat_id]] += 1
+                assignments_checked[0] += 1
+                return
+            det_idx = det_order[depth]
+            for cat_id in candidate_lists[det_idx]:
+                if cat_id in used_catalog_stars:
+                    continue
+                # Partial consistency check: only check pairs with already assigned detected stars
+                partial_valid = True
+                for prev_depth in range(depth):
+                    prev_det = det_order[prev_depth]
+                    if (min(det_idx, prev_det), max(det_idx, prev_det)) in pair_matches:
+                        matches = pair_matches[(min(det_idx, prev_det), max(det_idx, prev_det))]
+                        cat_prev = assignment[prev_det]
+                        found = False
+                        for star1_id, star2_id, _ in matches:
+                            if ((det_idx < prev_det and cat_id == star1_id and cat_prev == star2_id) or
+                                (det_idx < prev_det and cat_id == star2_id and cat_prev == star1_id) or
+                                (det_idx > prev_det and cat_prev == star1_id and cat_id == star2_id) or
+                                (det_idx > prev_det and cat_prev == star2_id and cat_id == star1_id)):
+                                found = True
+                                break
+                        if not found:
+                            partial_valid = False
+                            break
+                if not partial_valid:
+                    continue
+                assignment[det_idx] = cat_id
+                used_catalog_stars.add(cat_id)
+                backtrack(assignment, used_catalog_stars, depth + 1)
+                used_catalog_stars.remove(cat_id)
+                del assignment[det_idx]
+
+        backtrack(dict(), set(), 0)
+    else:
+        # Fallback: no valid assignments, leave assignment_matrix as zeros
+        pass
 
     # Hungarian algorithm finds minimum cost, so use negative of matches as cost
     cost_matrix = -assignment_matrix
@@ -110,7 +179,6 @@ def get_identified_star_info(matches, db_path=DB_PATH):
             identified[det_idx] = (None, None)
     return identified
 
-# --- Example usage for 4 detected stars ---
 if __name__ == "__main__":
     # # Build or load K-vector and angles
     # print("Loading angles from database...")
