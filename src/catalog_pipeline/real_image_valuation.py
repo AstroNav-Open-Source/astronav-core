@@ -56,10 +56,10 @@ def lost_in_space(image_path, visualize=False):
     R = get_rotation_matrix_from_quaternion(Q)
     print("\nQUEST rotational matrix\n", R)
 
-    return Q, R
-
     # print("\nQUEST quaternion error factor:")
     # test_quaternion_reprojection(Q, body_vectors, inertial_vectors, verbose=True)
 
+    return Q, R
+
 if __name__ == "__main__":
-    lost_in_space("starfield.png")
+    lost_in_space("starfield-2.png")
