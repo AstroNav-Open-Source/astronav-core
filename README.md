@@ -1,4 +1,4 @@
-# Space Treckers
+# Star Treckers
 
 ## Members
 Anastasia, Dariy, Emanuela, Michael, Rumen
@@ -7,7 +7,7 @@ Anastasia, Dariy, Emanuela, Michael, Rumen
 Create a lost-in-space star tracker that is fast, reliable and efficient.
 
 ## Overview
-Space Treckers is a star identification and attitude determination system designed for spacecraft navigation. The system processes star field images to identify stars and determine the spacecraft's orientation in space using advanced algorithms and a comprehensive star catalog.
+Star Treckers is a star identification and attitude determination system designed for spacecraft navigation. The system processes star field images to identify stars and determine the spacecraft's orientation in space using advanced algorithms and a comprehensive star catalog.
 
 ## Architecture
 The system consists of two main pipelines:
@@ -81,7 +81,7 @@ python index_data.py
 
 ## Project Structure
 ```
-space-treckers/
+star-treckers/
 ├── src/
 │   ├── image_pipeline/          # Star detection and image processing
 │   │   ├── capture_star_vectors.py
@@ -95,8 +95,7 @@ space-treckers/
 │   │   ├── star_catalog.db      # Star catalog database
 │   │   └── testing/            # Test scripts
 │   └── requirements.txt
-├── docs/                       # Documentation
-└── track/                      # Virtual environment
+└── docs/                       # Documentation
 ```
 
 ## Documentation
