@@ -4,7 +4,7 @@
 Anastasia, Dariy, Emanuela, Michael, Rumen
 
 ## Goal
-Create a lost-in-space star trakcer that is fast, reliable and efficient.
+Create a lost-in-space star tracker that is fast, reliable and efficient.
 
 ## Pipelines
 The current design has two pipelines - image recognition and catalog mapping. The first one has to detect the stars and provide the unit vector for them, and the other one applies algorithms for catalog matchin star identification and attitude designation.
