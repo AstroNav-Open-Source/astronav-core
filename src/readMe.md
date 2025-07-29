@@ -8,3 +8,4 @@ pip install "numpy<2.0"
 pip install scikit-image
 
 
+ls
