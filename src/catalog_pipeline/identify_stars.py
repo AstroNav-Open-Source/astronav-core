@@ -64,18 +64,19 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=0.1, db_path=D
     
     # For each detected pair, query catalog pairs
     # Build a set of all possible catalog star IDs from the matches
-    catalog_star_ids = set()
+    catalog_star_ids = set() # this builds a hash set
     pair_matches = dict()  # (i, j) -> list of (star1_id, star2_id)
     for i, j, angle in detected_angles:
         matches = query_star_pairs(angle, angle_tolerance, db_path=db_path, limit=limit)
-        pair_matches[(i, j)] = matches
+        pair_matches[(i, j)] = matches # data format: (i, j) = [(61379, 68002, 14.242087679330531), (72378, 76945, 14.242087343190798), (31457, 33977, 14.242081929215967)
         for star1_id, star2_id, _ in matches:
             catalog_star_ids.add(star1_id)
             catalog_star_ids.add(star2_id)
     catalog_star_ids = sorted(list(catalog_star_ids))
     m = len(catalog_star_ids)
+    # Create a mapping from catalog star ID to index and vice versa
     cat_id_to_idx = {cat_id: idx for idx, cat_id in enumerate(catalog_star_ids)}
-    idx_to_cat_id = {idx: cat_id for idx, cat_id in enumerate(catalog_star_ids)}
+    idx_to_cat_id = {idx: cat_id for idx, cat_id in enumerate(catalog_star_ids)} # Structure: {0: 124, 1: 145, 2: 154, 3: 207, 4: 330.. etc} -> {index: HIP}
 
     # Build possible catalog star candidates for each detected star
     from collections import defaultdict

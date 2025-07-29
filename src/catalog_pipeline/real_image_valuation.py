@@ -5,7 +5,7 @@ import numpy as np
 MAX_OBSERVED_STAR_CALCS = 30
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../image_pipeline'))
-from capture_star_vectors import detect_stars
+from image_pipeline.capture_star_vectors import detect_stars
 
 from .identify_stars import identify_stars_from_vectors, get_identified_star_info
 from .radec_to_vec import radec_to_vec

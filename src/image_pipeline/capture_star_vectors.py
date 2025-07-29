@@ -17,10 +17,11 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, visual
      cx, cy = w // 2, h // 2  # image center
 
      # Blur and threshold
-     blurred = cv2.GaussianBlur(img, (1, 1), 0)  # smaller kernel for speed
+     blurred = cv2.GaussianBlur(img, (3, 3), 0)  # smaller kernel for speed
      thresh = np.where(blurred > threshold_val, 255, 0).astype(np.uint8)
 
      # Find connected components (groups of bright pixels)
+     # num_labels, labels, stats, centroids = cv2.connectedComponentsWithStatsWithAlgorithm(thresh, connectivity=8)
      num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(thresh)
 
      star_data = []

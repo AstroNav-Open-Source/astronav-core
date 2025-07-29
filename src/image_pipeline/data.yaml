@@ -1,0 +1,9 @@
+
+path: /Users/michaelcaneff/Documents/University/Sofia University /Space Challenges/space-treckers/src/image_pipeline/Augmented-DeepSpaceYolo/
+test: /Users/michaelcaneff/Documents/University/Sofia University /Space Challenges/space-treckers/src/image_pipeline/Augmented-DeepSpaceYolo/sanity_check/images
+train: /Users/michaelcaneff/Documents/University/Sofia University /Space Challenges/space-treckers/src/image_pipeline/Augmented-DeepSpaceYolo/sanity_check/images
+val:   /Users/michaelcaneff/Documents/University/Sofia University /Space Challenges/space-treckers/src/image_pipeline/Augmented-DeepSpaceYolo/sanity_check/images
+nc:    1
+names:
+  0: star
+  
