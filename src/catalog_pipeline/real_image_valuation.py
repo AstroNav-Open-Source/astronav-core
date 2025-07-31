@@ -5,15 +5,15 @@ import numpy as np
 MAX_OBSERVED_STAR_CALCS = 30
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../image_pipeline'))
-from capture_star_vectors import detect_stars
+from image_pipeline.capture_star_vectors import detect_stars
 
-from identify_stars import identify_stars_from_vectors, get_identified_star_info
-from radec_to_vec import radec_to_vec
+from .identify_stars import identify_stars_from_vectors, get_identified_star_info
+from .radec_to_vec import radec_to_vec
 
-def lost_in_space(image_path):
+def lost_in_space(image_path, visualize=False):
     image_path = image_path
     print(f"Processing image: {image_path}")
-    img, thresh, star_data = detect_stars(image_path)
+    img, thresh, star_data = detect_stars(image_path, visualize=visualize)
     print(f"Detected {len(star_data)} stars.")
     if len(star_data) < 2:
         print("Not enough stars detected for identification.")
@@ -49,7 +49,7 @@ def lost_in_space(image_path):
         body_vectors = body_vectors[:min_len]
         inertial_vectors = inertial_vectors[:min_len]
 
-    from quest import quest_algorithm, get_rotation_matrix_from_quaternion, test_quaternion_reprojection
+    from .quest import quest_algorithm, get_rotation_matrix_from_quaternion, test_quaternion_reprojection
     Q = quest_algorithm(body_vectors, inertial_vectors)
     print("\nQUEST quaternion (image to catalog):\n", Q) 
 

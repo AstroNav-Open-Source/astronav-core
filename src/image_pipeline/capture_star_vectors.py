@@ -2,12 +2,12 @@ import cv2
 import numpy as np
 from skimage import feature
 import matplotlib.pyplot as plt
-from star_frame import StarFrame
+from image_pipeline.star_frame import StarFrame
 import sys
 from pathlib import Path
 
 
-def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500):
+def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, visualize=False):
      # Load grayscale
      img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
      if img is None:
@@ -17,10 +17,11 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500):
      cx, cy = w // 2, h // 2  # image center
 
      # Blur and threshold
-     blurred = cv2.GaussianBlur(img, (1, 1), 0)  # smaller kernel for speed
+     blurred = cv2.GaussianBlur(img, (3, 3), 0)  # smaller kernel for speed
      thresh = np.where(blurred > threshold_val, 255, 0).astype(np.uint8)
 
      # Find connected components (groups of bright pixels)
+     # num_labels, labels, stats, centroids = cv2.connectedComponentsWithStatsWithAlgorithm(thresh, connectivity=8)
      num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(thresh)
 
      star_data = []
@@ -49,6 +50,8 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500):
                     "vector": v_unit
                })
 
+     if visualize:
+          visualize_results(img, thresh, star_data)	
      return img, thresh, star_data
 
 
