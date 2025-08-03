@@ -1,40 +1,38 @@
-from picamzero import Camera
-from time import sleep
+from picamera2 import Picamera2, Preview
+import time
 import os
-import keyboard
-from datetime import datetime
-import pwd
 
-# Get actual user's Desktop path (even when running as root)
-user_home = pwd.getpwnam("rpi").pw_dir  # Replace "pi" if your username is different
-desktop_dir = os.path.join(user_home, "Desktop")
-os.makedirs(desktop_dir, exist_ok=True)
+# Initialize the camera
+picam2 = Picamera2()
+camera_config = picam2.create_still_configuration(
+    main={"size": (1920, 1080)},
+    lores={"size": (640, 480)},
+    display="lores"
+)
+picam2.configure(camera_config)
 
-# Initialize camera
-cam = Camera()
-      
-print("Press [SPACE] to take a photo. Press [ESC] to exit.")
-sleep(2)
-cam.start_preview()
+# Start camera preview and camera
+picam2.start_preview(Preview.QTGL)
+picam2.start()
+time.sleep(2)  # Let the camera warm up
 
-try:
-    while True:
-        if keyboard.is_pressed("space"):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filepath = f"{desktop_dir}/capture_{timestamp}.jpg"
-            cam.take_photo(filepath)
-            cam.stop_preview()
-            print(f"Photo saved: {filepath}")
-            sleep(1)  # Prevent accidental multiple captures
-            cam.start_preview()  # Restart preview if needed
+# Loop for taking pictures on keypress
+print("Press Enter to take a picture, or type 'q' then Enter to quit.")
 
-        elif keyboard.is_pressed("esc"):
-            print("Exiting...")
-            break
+counter = 1
+output_dir = "photos"
+os.makedirs(output_dir, exist_ok=True)
 
-except KeyboardInterrupt:
-    print("Program interrupted.")
-    cam.stop_preview()
-    exit(1)
-cam.stop_preview()
-exit(1)
+while True:
+    user_input = input(">> ")
+    if user_input.lower() == 'q':
+        break
+
+    filename = os.path.join(output_dir, f"image_{counter:03d}.jpg")
+    picam2.capture_file(filename)
+    print(f"Saved {filename}")
+    counter += 1
+
+picam2.stop_preview()
+picam2.close()
+print("Camera stopped.")

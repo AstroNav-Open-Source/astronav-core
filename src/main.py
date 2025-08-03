@@ -8,52 +8,45 @@ from datetime import datetime
 DEFAULT_IMAGE_PATH = Path(__file__).parent / "image_pipeline" / "starfield.png"
 
 def capture_image():
-    try:
-        from picamzero import Camera
-        from time import sleep
-        import keyboard
-        
-        # Initialize camera
-        cam = Camera()
-        print("Press [SPACE] to take a photo. Press [ESC] to exit.")
-        sleep(2)
-        cam.start_preview()
-        
-        try:
-            while True:
-                if keyboard.is_pressed("space"):
-                    # Create timestamp for unique filename
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    capture_dir = Path(__file__).parent / "captured_images"
-                    capture_dir.mkdir(exist_ok=True)
-                    filepath = capture_dir / f"capture_{timestamp}.jpg"
-                    
-                    # Take the photo
-                    cam.take_photo(str(filepath))
-                    cam.stop_preview()
-                    print(f"Photo saved: {filepath}")
-                    return filepath
+    from picamera2 import Picamera2, Preview
+    import time
+    import os
 
-                elif keyboard.is_pressed("esc"):
-                    print("Capture cancelled.")
-                    cam.stop_preview()
-                    return None
-                
-                sleep(0.1)  # Reduce CPU usage
-                
-        except KeyboardInterrupt:
-            print("Program interrupted.")
-            cam.stop_preview()
-            return None
-            
-    except ImportError:
-        print("Camera module not available. Make sure you're running this on a Raspberry Pi with picamzero installed.")
-        return None
-    except Exception as e:
-        print(f"Error capturing image: {str(e)}")
-        if 'cam' in locals():
-            cam.stop_preview()
-        return None
+    # Initialize the camera
+    picam2 = Picamera2()
+    camera_config = picam2.create_still_configuration(
+        main={"size": (1920, 1080)},
+        lores={"size": (640, 480)},
+        display="lores"
+    )
+    picam2.configure(camera_config)
+
+    # Start camera preview and camera
+    picam2.start_preview(Preview.QTGL)
+    picam2.start()
+    time.sleep(2)  # Let the camera warm up
+
+    # Loop for taking pictures on keypress
+    print("Press Enter to take a picture, or type 'q' then Enter to quit.")
+
+    counter = 1
+    output_dir = "photos"
+    os.makedirs(output_dir, exist_ok=True)
+
+    while True:
+        user_input = input(">> ")
+        if user_input.lower() == 'q':
+            break
+
+        filename = os.path.join(output_dir, f"image_{counter:03d}.jpg")
+        picam2.capture_file(filename)
+        print(f"Saved {filename}")
+        counter += 1
+
+    picam2.stop_preview()
+    picam2.close()
+    print("Camera stopped.")
+    return filename
 
 def process_image(image_path=None):
     if image_path is None:
@@ -75,7 +68,7 @@ def process_image(image_path=None):
         print(f"Error processing image: {str(e)}")
         return None, None
 
-def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
+def main(use_camera=True, image_path=DEFAULT_IMAGE_PATH):
     if use_camera:
         print("Capturing new image...")
         captured_path = capture_image()
@@ -99,8 +92,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "--capture":
             main(use_camera=True)
-        else:
-            main(image_path=sys.argv[1])
     else:
         main()
 
