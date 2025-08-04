@@ -1,9 +1,11 @@
+import os
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 
 from ultralytics import YOLO
 from pathlib import Path
 import argparse
 
-def train_model(create_new=False, model_name='custom_yolo'):
+def train_model(create_new=False, model_name='custom_yolo_186'):
     # Base paths
     base_path = Path(__file__).parent.parent.parent / 'runs/detect'
     weights_path = base_path / f'{model_name}/weights/best.pt'
@@ -19,8 +21,8 @@ def train_model(create_new=False, model_name='custom_yolo'):
     data_yaml = str(Path(__file__).parent / 'data.yaml')
     model.train(
         data=data_yaml, 
-        imgsz=340, 
-        epochs=1, 
+        imgsz=768, 
+        epochs=50,
         batch=8, 
         name=model_name,  # Use same name to overwrite
         device="mps",
