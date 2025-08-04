@@ -3,19 +3,24 @@ import sys
 from pathlib import Path
 import os
 from datetime import datetime
-from take_image import take_image as tk
 
 DEFAULT_IMAGE_PATH = Path(__file__).parent / "image_pipeline" / "starfield.png"
 
 def capture_image():
-    filename = tk()
-    return filename
+    # Only import camera module when needed
+    try:
+        from take_image import take_image as tk
+        filename = tk()
+        return filename
+    except ImportError:
+        print("Camera module not available. You need to use this on the RBPi.")
+        return None
 
 def process_image(image_path=None):
     from image_pipeline.capture_star_vectors import visualize_results
     from catalog_pipeline.real_image_valuation import lost_in_space
     if image_path is None:
-        image_path = Path(__file__).parent / "image_pipeline" / "starfield.png"
+        image_path = DEFAULT_IMAGE_PATH
     elif isinstance(image_path, str):
         image_path = Path(image_path)
     
@@ -33,15 +38,15 @@ def process_image(image_path=None):
         print(f"Error processing image: {str(e)}")
         return None, None
 
-def main(use_camera=True, image_path=DEFAULT_IMAGE_PATH):
+def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
     if use_camera:
         print("Capturing new image...")
         image_path = capture_image()
         if image_path is None:
-            print("Failed to capture image. Exiting...")
-            return
+            print("Failed to capture image. Using default test image instead...")
+            image_path = DEFAULT_IMAGE_PATH
         
-    print(f"The image path should be:", {image_path})
+    print(f"Processing image at: {image_path}")
     print("🔍 Processing image...")
     q, r = process_image(image_path)
     
@@ -53,11 +58,9 @@ def main(use_camera=True, image_path=DEFAULT_IMAGE_PATH):
         print("Failed to process image.")
 
 if __name__ == "__main__":
-    
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "--capture":
-            main(use_camera=True)
+    if len(sys.argv) > 1 and sys.argv[1] == "--capture":
+        main(use_camera=True)
     else:
-        main()
+        main(use_camera=False)
 
      
