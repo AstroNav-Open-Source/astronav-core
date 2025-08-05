@@ -1,3 +1,6 @@
+import os
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'  # Required for M1 Mac GPU support
+
 from ultralytics import YOLO
 from pathlib import Path
 
@@ -10,7 +13,7 @@ image_path = str(Path(__file__).parent / 'starfield-2.png')
 print(image_path)
 
 # Run prediction (inference)
-results = model.predict(source=image_path, save=True, conf=0.02, device="mps", show=True, line_width=2)
+results = model.predict(source=image_path, save=True, conf=0.01, device="mps", show=True, line_width=2)
 
 # `save=True` will save output images with bounding boxes
 # `show=True` will open a window to display them (optional)
