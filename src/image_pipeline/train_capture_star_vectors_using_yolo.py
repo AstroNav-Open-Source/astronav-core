@@ -3,7 +3,7 @@ from ultralytics import YOLO
 from pathlib import Path
 import argparse
 
-def train_model(create_new=False, model_name='custom_yolo'):
+def train_model(create_new=True, model_name='custom_yolo_186_images'):
     # Base paths
     base_path = Path(__file__).parent.parent.parent / 'runs/detect'
     weights_path = base_path / f'{model_name}/weights/best.pt'
@@ -18,19 +18,18 @@ def train_model(create_new=False, model_name='custom_yolo'):
 
     data_yaml = str(Path(__file__).parent / 'data.yaml')
     model.train(
-        data=data_yaml, 
-        imgsz=340, 
-        epochs=1, 
-        batch=8, 
-        name=model_name,  # Use same name to overwrite
+        data=data_yaml,
+        imgsz=1024,          # try 1024 if it fits
+        epochs=50,
+        batch=8,
+        name=model_name,
         device="mps",
-        exist_ok=True  # Allow overwriting existing experiment
+        cache=True,
+        workers=2,
+        patience=20,
+        exist_ok=True
     )
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--new', action='store_true', help='Create new model instead of updating existing')
-    parser.add_argument('--name', default='custom_yolo', help='Model name')
-    args = parser.parse_args()
-    train_model(create_new= False, model_name=args.name)
-#     train_model(create_new=args.new, model_name=args.name)
+    train_model(create_new=True)
+    # train_model(create_new=args.new, model_name=args.name)
