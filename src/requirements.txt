@@ -57,3 +57,7 @@ ultralytics-thop==2.0.14
 urllib3==2.5.0
 webencodings==0.5.1
 zipp==3.23.0
+numpy>=1.20.0
+scipy>=1.7.0
+opencv-python>=4.5.0
+filterpy>=1.4.5
