@@ -9,7 +9,7 @@ import threading
 # === Shared IMU state ===
 quaternion_latest = None
 euler_latest = None
-calibrated = False
+is_IMU_calibrated = False
 sensor = None
 
 # === Plot buffers ===
@@ -31,16 +31,28 @@ def is_calibrated(sensor):
     sys_cal, gyro_cal, accel_cal, mag_cal = sensor.calibration_status
     return sys_cal == 3 and gyro_cal == 3 and mag_cal == 3
 
+def get_detailed_calibration_status():
+    sensor
+    if sensor is not None:
+        return sensor.calibration_status
+    return (0, 0, 0, 0) 
+
+def get_calibration_status():
+    return is_IMU_calibrated
+
+def get_latest_quaterlion():
+    return quaternion_latest
+
 # === Background IMU daemon ===
 def imu_loop():
-    global sensor, quaternion_latest, euler_latest, calibrated, start_time
+    global sensor, quaternion_latest, euler_latest, is_IMU_calibrated, start_time
     sensor = setup_bno055()
 
     print("🔧 IMU daemon started... Waiting for calibration.")
     while not is_calibrated(sensor):
         time.sleep(0.5)
 
-    calibrated = True
+    is_IMU_calibrated = True
     start_time = time.time()
     print("✅ IMU calibrated. Streaming data.")
 
@@ -82,7 +94,9 @@ def setup_plot():
 
 # === Plot update function ===
 def update_plot(frame):
-    if not calibrated or euler_latest is None:
+    sys_cal, gyro_cal, accel_cal, mag_cal = sensor.calibration_status
+    if not is_IMU_calibrated or euler_latest is None:
+        status_text.set_text(f"Calibrating: SYS:{sys_cal} , GYRO: {gyro_cal} , ACCL: {accel_cal} MAG: {mag_cal}")
         return line_yaw, line_roll, line_pitch, status_text
 
     yaw, roll, pitch = euler_latest
@@ -106,7 +120,6 @@ def update_plot(frame):
 # === Run standalone or in orchestrator ===
 if __name__ == "__main__":
     start_imu_daemon()
-
     fig, ax, line_yaw, line_roll, line_pitch, status_text = setup_plot()
     ani = animation.FuncAnimation(fig, update_plot, interval=100)
     plt.tight_layout()

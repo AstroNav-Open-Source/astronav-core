@@ -2,6 +2,9 @@ import sys
 from pathlib import Path
 import os
 from datetime import datetime
+from imu_readings import *
+import time
+
 # from imu_readings import get_quaternion , calibrate
 DEFAULT_IMAGE_PATH = Path(__file__).parent / "image_pipeline" / "starfield.png"
 
@@ -48,6 +51,15 @@ def process_image(image_path=None):
         return None, None
 
 def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
+    print("Starting IMU Daemon...")
+    start_imu_daemon()
+    print("Waiting for IMU to calibrate...")
+    while not get_calibration_status():
+        print("Still calibrating... Waiting 1 second.")
+        sys_cal, gyro_cal, accel_cal, mag_cal = get_detailed_calibration_status()
+        print(f"Calibrating: SYS:{sys_cal} , GYRO: {gyro_cal} , ACCL: {accel_cal} MAG: {mag_cal}")
+        time.sleep(1)
+
     if use_camera:
         print("Capturing new image...")
         image_path = capture_image()
@@ -55,8 +67,11 @@ def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
             print("Failed to capture image. Using default test image instead...")
             image_path = DEFAULT_IMAGE_PATH
         
+    while True:
+        print(f"Latest Quaternion from IMU {get_latest_quaterlion()}")
+        time.sleep(1)
     print(f"Processing image at: {image_path}")
-    print("🔍 Processing image...")
+    print("Processing image...")
     quarterion_star, r = process_image(image_path)
 #     delta_quaternion = calculate_delta_quaternion( quarterion_star, get_quaternion())
     delta_quaternion = calculate_delta_quaternion( quarterion_star, quarterion_star)
