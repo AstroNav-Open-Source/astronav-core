@@ -1,10 +1,19 @@
-
 import sys
 from pathlib import Path
 import os
 from datetime import datetime
-
+# from imu_readings import get_quaternion , calibrate
 DEFAULT_IMAGE_PATH = Path(__file__).parent / "image_pipeline" / "starfield.png"
+
+def calculate_delta_quaternion(quaternion_star, quaternion_imu= None):
+    delta_quaternion = quaternion_star * quaternion_imu.conjugate()
+    delta_quaternion = {
+     "x": delta_quaternion[0],
+     "y": delta_quaternion[1],
+     "z": delta_quaternion[2],
+     "w": delta_quaternion[3]
+    }
+    return delta_quaternion
 
 def capture_image():
     # Only import camera module when needed
@@ -48,11 +57,13 @@ def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
         
     print(f"Processing image at: {image_path}")
     print("🔍 Processing image...")
-    q, r = process_image(image_path)
+    quarterion_star, r = process_image(image_path)
+#     delta_quaternion = calculate_delta_quaternion( quarterion_star, get_quaternion())
+    delta_quaternion = calculate_delta_quaternion( quarterion_star, quarterion_star)
     
-    if q is not None and r is not None:
+    if quarterion_star is not None and r is not None:
         print("Processing complete!")
-        print("Quaternion:", q)
+        print("Quaternion:", quarterion_star)
         print("Rotation Matrix:", r)
     else:
         print("Failed to process image.")

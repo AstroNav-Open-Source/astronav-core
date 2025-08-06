@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from skimage import feature
 import matplotlib.pyplot as plt
-from star_frame import StarFrame
+from image_pipeline.star_frame import StarFrame
 import sys
 from pathlib import Path
 

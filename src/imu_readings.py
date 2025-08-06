@@ -1,17 +1,18 @@
 import board
-import busio
 import adafruit_bno055
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
 from collections import deque
+import threading
 
-# Setup BNO055 sensor
-i2c = board.I2C()
-sensor = adafruit_bno055.BNO055_I2C(i2c)
+# === Shared IMU state ===
+quaternion_latest = None
+euler_latest = None
+calibrated = False
+sensor = None
 
-
-# Data buffers
+# === Plot buffers ===
 max_len = 100
 x_vals = deque(maxlen=max_len)
 yaw_vals = deque(maxlen=max_len)
@@ -19,45 +20,72 @@ roll_vals = deque(maxlen=max_len)
 pitch_vals = deque(maxlen=max_len)
 
 start_time = None
-calibrated = False
 
-# Plot setup
-fig, ax = plt.subplots()
-line_yaw, = ax.plot([], [], label="Yaw (heading)", color='r')
-line_roll, = ax.plot([], [], label="Roll", color='g')
-line_pitch, = ax.plot([], [], label="Pitch", color='b')
-status_text = ax.text(0.5, 0.95, "", transform=ax.transAxes, ha="center")
+# === Sensor setup ===
+def setup_bno055():
+    i2c = board.I2C()
+    return adafruit_bno055.BNO055_I2C(i2c)
 
-ax.set_ylim(-250, 250)
-ax.set_xlim(0, max_len)
-ax.set_title("Live Euler Angles from BNO055")
-ax.set_xlabel("Time (s)")
-ax.set_ylabel("Degrees")
-ax.legend(loc="lower left")
-plt.grid(True)
-
-# Animation update
-def update(frame):
-    global start_time, calibrated
-
-    # Check calibration status
+# === Calibration check ===
+def is_calibrated(sensor):
     sys_cal, gyro_cal, accel_cal, mag_cal = sensor.calibration_status
+    return sys_cal == 3 and gyro_cal == 3 and mag_cal == 3
 
-    if not calibrated:
-        status_text.set_text(f"Calibrating... SYS:{sys_cal} GYRO:{gyro_cal} MAG:{mag_cal}")
-        if sys_cal == 3 and gyro_cal == 3 and mag_cal == 3:
-            calibrated = True
-            start_time = time.time()
-            print("✅ Calibration complete. Plotting started.")
+# === Background IMU daemon ===
+def imu_loop():
+    global sensor, quaternion_latest, euler_latest, calibrated, start_time
+    sensor = setup_bno055()
+
+    print("🔧 IMU daemon started... Waiting for calibration.")
+    while not is_calibrated(sensor):
+        time.sleep(0.5)
+
+    calibrated = True
+    start_time = time.time()
+    print("✅ IMU calibrated. Streaming data.")
+
+    while True:
+        q = sensor.quaternion
+        e = sensor.euler
+        if q is not None:
+            quaternion_latest = {
+                "w": q[0],
+                "x": q[1],
+                "y": q[2],
+                "z": q[3]
+            }
+        if e is not None:
+            euler_latest = e
+        time.sleep(0.05)
+
+def start_imu_daemon():
+    thread = threading.Thread(target=imu_loop, daemon=True)
+    thread.start()
+
+# === Plotting setup ===
+def setup_plot():
+    fig, ax = plt.subplots()
+    line_yaw, = ax.plot([], [], label="Yaw (heading)", color='r')
+    line_roll, = ax.plot([], [], label="Roll", color='g')
+    line_pitch, = ax.plot([], [], label="Pitch", color='b')
+    status_text = ax.text(0.5, 0.95, "", transform=ax.transAxes, ha="center")
+
+    ax.set_ylim(-250, 250)
+    ax.set_xlim(0, max_len)
+    ax.set_title("Live Euler Angles from BNO055")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Degrees")
+    ax.legend(loc="lower left")
+    ax.grid(True)
+
+    return fig, ax, line_yaw, line_roll, line_pitch, status_text
+
+# === Plot update function ===
+def update_plot(frame):
+    if not calibrated or euler_latest is None:
         return line_yaw, line_roll, line_pitch, status_text
 
-    # Once calibrated, start recording and plotting
-    euler = sensor.euler
-    if euler is None:
-        return line_yaw, line_roll, line_pitch, status_text
-    quaternion_imu = sensor.quaternion
-    print(f"The quaternion is: {quaternion_imu}")
-    yaw, roll, pitch = euler
+    yaw, roll, pitch = euler_latest
     curr_time = time.time() - start_time
 
     x_vals.append(curr_time)
@@ -68,13 +96,18 @@ def update(frame):
     line_yaw.set_data(x_vals, yaw_vals)
     line_roll.set_data(x_vals, roll_vals)
     line_pitch.set_data(x_vals, pitch_vals)
-    if len(x_vals) >= 100:
+
+    if len(x_vals) >= max_len:
         ax.set_xlim(x_vals[0], x_vals[-1])
-    #ax.set_xlim(max(0, curr_time - max_len), curr_time)
+
     status_text.set_text("Recording...")
     return line_yaw, line_roll, line_pitch, status_text
 
-# Start animation
-ani = animation.FuncAnimation(fig, update, interval=100)
-plt.tight_layout()
-plt.show()
+# === Run standalone or in orchestrator ===
+if __name__ == "__main__":
+    start_imu_daemon()
+
+    fig, ax, line_yaw, line_roll, line_pitch, status_text = setup_plot()
+    ani = animation.FuncAnimation(fig, update_plot, interval=100)
+    plt.tight_layout()
+    plt.show()
