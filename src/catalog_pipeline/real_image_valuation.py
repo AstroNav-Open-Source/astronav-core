@@ -11,7 +11,6 @@ from .identify_stars import identify_stars_from_vectors, get_identified_star_inf
 from .radec_to_vec import radec_to_vec
 
 def lost_in_space(image_path, visualize=False):
-    image_path = image_path
     print(f"Processing image: {image_path}")
     img, thresh, star_data = detect_stars(image_path, visualize=visualize)
     print(f"Detected {len(star_data)} stars.")

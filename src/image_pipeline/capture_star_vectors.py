@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from skimage import feature
 import matplotlib.pyplot as plt
-from image_pipeline.star_frame import StarFrame
+from star_frame import StarFrame
 import sys
 from pathlib import Path
 
@@ -54,7 +54,6 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, visual
           visualize_results(img, thresh, star_data)	
      return img, thresh, star_data
 
-
 def visualize_results(img, thresh, star_data):
      fig, axs = plt.subplots(1, 3, figsize=(15, 5))
      axs[0].imshow(img, cmap='gray')
@@ -76,35 +75,31 @@ def visualize_results(img, thresh, star_data):
      plt.tight_layout()
      plt.show()
 
-
 if __name__ == "__main__":
-    IMAGE_PATH = "/Users/michaelcaneff/Documents/University/Sofia University /Space Challenges/space-treckers/src/image_pipeline/Taken Test Images/capture_starfield_1.jpg"
-#     IMAGE_PATH = "Taken Test Images/capture_starfield_1.jpg"
-    IMAGE_PATH1 = "Taken Test Images/capture_starfield_extreme_1.jpg"
-    IMAGE_PATH2 = "Taken Test Images/capture_starfield_extreme_2.jpg"
-    if not Path(IMAGE_PATH).exists():
-        print(f"Warning: Image not found at {IMAGE_PATH}")
-        print("Available images in directory:")
-        for img_file in Path().glob("Taken Test Images/*.jpg"):
-            print(f"  - {img_file}")
-        sys.exit(1)
+     IMAGE_PATH = "/Users/michaelcaneff/Documents/University/Sofia University /Space Challenges/space-treckers/src/image_pipeline/Taken Test Images/capture_starfield_1.jpg"
+     # IMAGE_PATH = "Taken Test Images/capture_starfield_1.jpg"
+     IMAGE_PATH1 = "Taken Test Images/capture_starfield_extreme_1.jpg"
+     IMAGE_PATH2 = "Taken Test Images/capture_starfield_extreme_2.jpg"
+     if not Path(IMAGE_PATH).exists():
+          print(f"Warning: Image not found at {IMAGE_PATH}")
+          print("Available images in directory:")
+          for img_file in Path().glob("Taken Test Images/*.jpg"):
+               print(f"  - {img_file}")
+          sys.exit(1)
+     try:
+          img, thresh, stars = detect_stars(IMAGE_PATH)
+          print(f"Detected {len(stars)} stars.")
+          for i, s in enumerate(stars[:5]):
+               print(f"Star {i}: Pos={s['position']}, Intensity={s['intensity']:.2f}, Vector={s['vector']}")
+          if stars:
+               sf = StarFrame(stars)
+               print(sf.intensities())
+               print(sf.pair_list_intensity())
+          else:
+               print("No stars to process")
+          visualize_results(img, thresh, stars)
 
-    try:
-        img, thresh, stars = detect_stars(IMAGE_PATH)
-        print(f"Detected {len(stars)} stars.")
-        for i, s in enumerate(stars[:5]):
-            print(f"Star {i}: Pos={s['position']}, Intensity={s['intensity']:.2f}, Vector={s['vector']}")
-
-        if stars:
-            sf = StarFrame(stars)
-            print(sf.intensities())
-            print(sf.pair_list_intensity())
-        else:
-            print("No stars to process")
-
-        visualize_results(img, thresh, stars)
-
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
-        print("Please check that the image file exists and the path is correct")
-        sys.exit(1)
+     except FileNotFoundError as e:
+          print(f"Error: {e}")
+          print("Please check that the image file exists and the path is correct")
+          sys.exit(1)

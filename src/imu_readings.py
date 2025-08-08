@@ -1,5 +1,4 @@
-import board
-import adafruit_bno055
+
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
@@ -23,6 +22,8 @@ start_time = None
 
 # === Sensor setup ===
 def setup_bno055():
+    import board
+    import adafruit_bno055
     i2c = board.I2C()
     return adafruit_bno055.BNO055_I2C(i2c)
 

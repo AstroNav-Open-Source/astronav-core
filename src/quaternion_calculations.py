@@ -1,64 +1,76 @@
+from __future__ import annotations
 import numpy as np
+from math import atan2, asin, degrees
 
-def dict_to_quaternion(quat_dict):
-    """Convert dictionary representation to numpy quaternion array"""
-    return np.array([quat_dict["w"], quat_dict["x"], quat_dict["y"], quat_dict["z"]])
+def dict2quat(d: dict[str, float]) -> np.ndarray:
+    return np.array([d["w"], d["x"], d["y"], d["z"]], dtype=float)
 
-def quaternion_to_dict(quat_array):
-    """Convert numpy quaternion array to dictionary representation"""
-    return {
-        "w": quat_array[0],
-        "x": quat_array[1], 
-        "y": quat_array[2],
-        "z": quat_array[3]
-    }
+def quat2dict(q: np.ndarray) -> dict[str, float]:
+    return {"w": q[0], "x": q[1], "y": q[2], "z": q[3]}
 
-def quaternion_multiply(q1, q2):
-    """Multiply two quaternions"""
-    w1, x1, y1, z1 = q1
-    w2, x2, y2, z2 = q2
-    
-    w = w1*w2 - x1*x2 - y1*y2 - z1*z2
-    x = w1*x2 + x1*w2 + y1*z2 - z1*y2
-    y = w1*y2 - x1*z2 + y1*w2 + z1*x2
-    z = w1*z2 + x1*y2 - y1*x2 + z1*w2
-    
-    return np.array([w, x, y, z])
+def norm(q: np.ndarray) -> np.ndarray:
+    return q / np.linalg.norm(q)
 
-def quaternion_conjugate(q):
-    """Get conjugate of quaternion"""
+def conj(q: np.ndarray) -> np.ndarray:
     return np.array([q[0], -q[1], -q[2], -q[3]])
 
-def calculate_delta_quaternion(quaternion_star, quaternion_imu=None):
-    # Convert dictionaries to numpy arrays
-    q_star = dict_to_quaternion(quaternion_star)
-    q_imu = dict_to_quaternion(quaternion_imu)
-    
-    # Calculate delta quaternion: q_delta = q_star * q_imu_conjugate
-    q_imu_conj = quaternion_conjugate(q_imu)
-    delta_quaternion = quaternion_multiply(q_star, q_imu_conj)
-    
-    # Convert back to dictionary format
-    return quaternion_to_dict(delta_quaternion)
+def mul(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    w1, x1, y1, z1 = a
+    w2, x2, y2, z2 = b
+    return np.array([
+        w1*w2 - x1*x2 - y1*y2 - z1*z2,
+        w1*x2 + x1*w2 + y1*z2 - z1*y2,
+        w1*y2 - x1*z2 + y1*w2 + z1*x2,
+        w1*z2 + x1*y2 - y1*x2 + z1*w2,
+    ])
 
-def calculate_final_quaternion_to_transmit(quaternion_star, quaternion_imu):
-    delta_quaternion = calculate_delta_quaternion(quaternion_star, quaternion_imu)
-    final_quaternion = quaternion_multiply(quaternion_star, delta_quaternion)
-    return final_quaternion
-    
+def propagate_orientation(
+    Q_STAR_REF: dict[str, float],
+    Q_IMU_REF : dict[str, float],
+    Q_IMU_CURR: dict[str, float],
+) -> dict[str, float]:
+    qs  = norm(dict2quat(Q_STAR_REF))
+    qi0 = norm(dict2quat(Q_IMU_REF))
+    qik = norm(dict2quat(Q_IMU_CURR))
+
+    delta_q_body = mul(qik, conj(qi0))      # body motion since t0
+    q_body  = norm(mul(delta_q_body, qs))   # propagated star reference
+
+    return quat2dict(q_body)
+
+
+
+def quat_to_euler(q: dict[str, float] | np.ndarray, deg: bool = True):
+    """
+    Convert quaternion to aerospace yaw-pitch-roll 
+    • Rotation sequence:  Z (yaw) → Y (pitch) → X (roll)
+    • Returns degrees by default.  Set deg=False for radians.
+    """
+    if isinstance(q, dict):
+        q = dict2quat(q)
+    w, x, y, z = q
+
+    yaw = atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
+
+    sinp = 2*(w*y - z*x)
+    pitch = asin(max(-1.0, min(1.0, sinp)))
+
+    roll = atan2(2*(w*x + y*z), 1 - 2*(x*x + y*y))
+
+    if deg:
+        yaw, pitch, roll = map(degrees, (yaw, pitch, roll))
+    return yaw, pitch, roll
 
 if __name__ == "__main__":
-    quaternion_star = {
-        "x": 0.1,
-        "y": 0.2,
-        "z": 0.3,
-        "w": 0.4
-    }
-    quaternion_imu = {
-        "x": 0.5,
-        "y": 0.6,
-        "z": 0.7,
-        "w": 0.8
-    }
-    delta_quaternion = calculate_delta_quaternion(quaternion_star, quaternion_imu)
-    print("Delta quaternion:", delta_quaternion)
+    Q_STAR_REF = {"w": 1, "x": 0, "y": 0, "z": 0}
+    Q_IMU_REF  = {"w": 1, "x": 0, "y": 0, "z": 0}
+
+    from math import sin, cos, pi
+    s, c = sin(pi/5), cos(pi/4)
+    Q_IMU_CURR = {"w": c, "x": 0, "y": 0, "z": s}
+
+    Q_BODY = propagate_orientation(Q_STAR_REF, Q_IMU_REF, Q_IMU_CURR)
+    psy, theta, phi = quat_to_euler(Q_BODY)
+
+    print("Propagated quaternion:", Q_BODY)
+    print(f"Yaw ψ ≈ {psy:.1f}°,  Pitch θ ≈ {theta:.1f}°,  Roll φ ≈ {phi:.1f}°")
