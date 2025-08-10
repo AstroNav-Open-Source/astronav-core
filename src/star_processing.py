@@ -4,7 +4,7 @@ from image_pipeline.capture_star_vectors import visualize_results
 
 DEFAULT_IMAGE_PATH = Path(__file__).parent / "image_pipeline" / "starfield.png"
 
-def capture_image():
+def capture_image() -> str | None:
     try:
         from take_image import take_image as tk
         return tk()
@@ -29,6 +29,8 @@ def process_star_image(use_camera=False, visualize=True):
     quaternion, rotation_matrix = lost_in_space(str(image_path), visualize=visualize)
     return quaternion, rotation_matrix
 
+if __name__ == "__main__":
+     print("Star Processing, testing...")
 
 # def capture_image():
 #     # Only import camera module when needed
