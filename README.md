@@ -64,6 +64,14 @@ cd src/catalog_pipeline
 python real_image_valuation.py
 ```
 
+### Testing Mode (Simulated Quaternion)
+To run the system in testing mode without connecting to the Raspberry Pi, use the `--test` flag. This will generate and print a simulated quaternion (in the same format as the real system) and its corresponding yaw, pitch, and roll angles:
+```bash
+cd src
+python main.py --test
+```
+This is useful for development and frontend-backend integration without hardware.
+
 ### Image Processing
 Process star field images:
 ```bash
@@ -77,6 +85,10 @@ Initialize and populate the star catalog:
 cd src/catalog_pipeline
 python fill_db.py
 python index_data.py
+```
+### MAC IP Operation
+```bash
+ipconfig getifaddr en0
 ```
 
 ## Project Structure
@@ -100,19 +112,3 @@ star-treckers/
 
 ## Documentation
 Additional documentation is available at: [Google Drive Documentation](https://drive.google.com/drive/folders/11sBpqvF0sbLGrn1AJVCqiCKHf7mg8zti?usp=sharing)
-
-## Testing
-The system includes comprehensive testing capabilities:
-- Real image evaluation with sample star fields
-- Pairwise star matching algorithms
-- QUEST algorithm validation
-- Database query performance testing
-
-## Performance
-- **Star Detection**: Optimized for ArduCam with ~70° FOV
-- **Catalog Matching**: Efficient pairwise angle matching with early exit optimization
-- **Attitude Determination**: QUEST algorithm with quaternion-based rotation matrices
-- **Database**: Pre-indexed star pairs for fast lookup
-
-## Contributing
-This project is developed as part of Space Camp 2025. For contributions, please follow the established coding standards and testing procedures.
