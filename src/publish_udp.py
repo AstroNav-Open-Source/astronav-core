@@ -137,20 +137,20 @@ class OrientationPublisher:
         finally:
             self.socket.close()
 
-def send_quaternion(self, w, x, y, z, extra_data=None):
-    """Send a single quaternion over UDP."""
-    message = {
-        'q': [w, x, y, z],
-        'fov_deg': FOV_DEGREES,
-        'ts_unix_ms': int(time.time() * 1000)
-    }
-    if extra_data:
-        message.update(extra_data)
-    try:
-        data = json.dumps(message).encode('utf-8')
-        self.socket.sendto(data, (self.mac_ip, self.mac_port))
-    except Exception as e:
-        print(f"Send error: {e}")
+    def send_quaternion(self, w, x, y, z, extra_data=None):
+        """Send a single quaternion over UDP."""
+        message = {
+            'q': [w, x, y, z],
+            'fov_deg': FOV_DEGREES,
+            'ts_unix_ms': int(time.time() * 1000)
+        }
+        if extra_data:
+            message.update(extra_data)
+        try:
+            data = json.dumps(message).encode('utf-8')
+            self.socket.sendto(data, (self.mac_ip, self.mac_port))
+        except Exception as e:
+            print(f"Send error: {e}")
 
 def main():
     if len(sys.argv) > 1:
