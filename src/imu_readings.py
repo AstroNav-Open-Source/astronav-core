@@ -2,6 +2,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
+import math
 from collections import deque
 import threading
 
@@ -45,31 +46,39 @@ def get_latest_quaterlion():
     return quaternion_latest
 
 # === Background IMU daemon ===
+def is_valid_quaternion(q):
+    return q is not None and all(
+        v is not None and not (isinstance(v, float) and math.isnan(v))
+        for v in [q[0], q[1], q[2], q[3]]
+    )
+
 def imu_loop():
     global sensor, quaternion_latest, euler_latest, is_IMU_calibrated, start_time
     sensor = setup_bno055()
-
     print("🔧 IMU daemon started... Waiting for calibration.")
     while not is_calibrated(sensor):
         time.sleep(0.5)
-
     is_IMU_calibrated = True
     start_time = time.time()
     print("✅ IMU calibrated. Streaming data.")
-
     while True:
-        q = sensor.quaternion
-        e = sensor.euler
-        if q is not None:
-            quaternion_latest = {
-                "w": q[0],
-                "x": q[1],
-                "y": q[2],
-                "z": q[3]
-            }
-        if e is not None:
-            euler_latest = e
-        time.sleep(0.05)
+        try:
+            q = sensor.quaternion
+            e = sensor.euler
+            if is_valid_quaternion(q):
+                quaternion_latest = {
+                    "w": q[0],
+                    "x": q[1],
+                    "y": q[2],
+                    "z": q[3]
+                }
+            else:
+                print("IMU read returned invalid quaternion, skipping update.")
+            if e is not None:
+                euler_latest = e
+        except Exception as ex:
+            print(f"IMU read error: {ex}")
+        time.sleep(0.5)
 
 def start_imu_daemon():
     thread = threading.Thread(target=imu_loop, daemon=True)
