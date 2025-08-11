@@ -35,7 +35,8 @@ def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
 
 #     delta_quaternion = calculate_delta_quaternion( quarterion_star, get_quaternion())
      if use_camera:
-          Q_STAR_REF = quaternion_star                     # inertial ➜ body  (star)
+          from quaternion_calculations import quat2dict
+          Q_STAR_REF = quat2dict(quaternion_star)
           Q_IMU_REF  = get_latest_quaterlion()   
 
           while True:
@@ -46,7 +47,7 @@ def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
                     f"Quaternion : {Q_BODY_CURR}   |   "
                     f"Yaw ψ={yaw:6.1f}°  Pitch θ={pitch:6.1f}°  Roll φ={roll:6.1f}°"
                )
-               time.sleep(1)
+               time.sleep(0.25)
 
 if __name__ == "__main__":
      if len(sys.argv) > 1 and sys.argv[1] == "--capture":
