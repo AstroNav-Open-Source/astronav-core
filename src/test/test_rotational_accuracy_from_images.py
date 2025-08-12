@@ -231,11 +231,6 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
           distance = quaternion_angular_distance(quat1_dict, quat2_dict)
           print(f"Distance: {distance}")
           return distance
-
-     
-     def test_basic_functionality(self):
-          """Basic test placeholder."""
-          pass
      
      def test_rotational_accuracy_between_0_and_45_dec(self):
           """Test rotational accuracy between images."""
@@ -250,35 +245,41 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
           # Now let's test the rotational difference between the two images
           if len(test_images) >= 2:
                # Get the first two images
-               image_names = list(test_images.keys())
-               image1_name = image_names[0]
-               image2_name = image_names[1]
+               image1_name = test_images['0RA_0DEC']
+               image2_name = test_images['0RA_45DEC']
                
                print(f"\nTesting rotational difference between:")
                print(f"  Image 1: {image1_name}")
                print(f"  Image 2: {image2_name}")
 
-               calculate_using_euler = False
-               if calculate_using_euler:
-                    result = self.calculate_rotational_difference(
+               result = self.test_quaternion_angular_distance(
                     test_images[image1_name]['path'],
                     test_images[image2_name]['path']
-                    )
-                    self.assertIsNotNone(result)
-                    expected_diff = 45.0
-                    tolerance = 5.0
-                    self.assertAlmostEqual(result['max_diff'], expected_diff, delta=tolerance)
+               )
 
-               else:
-                    result = self.test_quaternion_angular_distance(
-                         test_images[image1_name]['path'],
-                         test_images[image2_name]['path']
-                    )
-                    self.assertIsNotNone(result)
-                    expected_diff = 45.0
-                    tolerance = 5.0
-                    self.assertAlmostEqual(result, expected_diff, delta=tolerance)
+               self.assertIsNotNone(result)
+               expected_diff = 45.0
+               tolerance = 5.0
+               self.assertAlmostEqual(result, expected_diff, delta=tolerance)
 
+
+
+     def test_rotational_accuracy_from_0ran_0dec(self):
+          """Test rotational accuracy from 0RA_0DEC."""
+          # Get the test images
+          test_images = self.discover_test_images()
+          
+          # For now, let's just print what we found
+          print(f"\nTest images found: {len(test_images)}")
+          for name, info in test_images.items():
+               print(f"  {name}: RA={info['ra']}, DEC={info['dec']}")
+          # extract the test image from the test_images dictionary with the key 0RA_0DEC
+          test_image = test_images['0RA_0DEC']
+          print(f"Test image: {test_image}")
+
+          test_image_path = test_image['path']
+          quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=False)
+          import scipy 
 
 if __name__ == "__main__":
      unittest.main()
