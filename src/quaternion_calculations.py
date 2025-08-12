@@ -38,6 +38,23 @@ def propagate_orientation(
 
     return quat2dict(q_body)
 
+def quaternion_angular_distance(q1, q2):
+    """Calculate the angular distance between two quaternions."""
+    # Convert to numpy arrays
+    q1_array = dict2quat(q1) if isinstance(q1, dict) else q1
+    q2_array = dict2quat(q2) if isinstance(q2, dict) else q2
+    
+    # Normalize
+    q1_norm = q1_array / np.linalg.norm(q1_array)
+    q2_norm = q2_array / np.linalg.norm(q2_array)
+    
+    # Calculate dot product (cosine of half the angle)
+    dot_product = np.abs(np.dot(q1_norm, q2_norm))
+    dot_product = np.clip(dot_product, 0, 1)  # Handle numerical errors
+    
+    # Angular distance in radians, then convert to degrees
+    angular_distance = 2 * np.arccos(dot_product)
+    return np.degrees(angular_distance)
 
 
 def quat_to_euler(q: dict[str, float] | np.ndarray, deg: bool = True):
@@ -61,9 +78,18 @@ def quat_to_euler(q: dict[str, float] | np.ndarray, deg: bool = True):
         yaw, pitch, roll = map(degrees, (yaw, pitch, roll))
     return yaw, pitch, roll
 
+def quat_to_euler_scipy(q_dict):
+    from scipy.spatial.transform import Rotation
+    # Convert to scipy format [x, y, z, w]
+    quat_scipy = [q_dict['x'], q_dict['y'], q_dict['z'], q_dict['w']]
+    r = Rotation.from_quat(quat_scipy)
+    # Get ZYX Euler angles (yaw, pitch, roll)
+    euler = r.as_euler('zyx', degrees=True)
+    return euler[0], euler[1], euler[2]  # yaw, pitch, roll
+
 if __name__ == "__main__":
-    Q_STAR_REF = {"w": 1, "x": 0, "y": 0, "z": 0}
-    Q_IMU_REF  = {"w": 1, "x": 0, "y": 0, "z": 0}
+    Q_STAR_REF = {"w": 0.7, "x": 0.2, "y": 0.3, "z": 0.6}
+    Q_IMU_REF  = {"w": 0.6, "x": 0.5, "y": 0.4, "z": 0.5}
 
     from math import sin, cos, pi
     s, c = sin(pi/5), cos(pi/4)
@@ -74,3 +100,5 @@ if __name__ == "__main__":
 
     print("Propagated quaternion:", Q_BODY)
     print(f"Yaw ψ ≈ {psy:.1f}°,  Pitch θ ≈ {theta:.1f}°,  Roll φ ≈ {phi:.1f}°")
+    psy_scipy, theta_scipy, phi_scipy = quat_to_euler_scipy(Q_BODY)
+    print(f"Yaw ψ ≈ {psy_scipy:.1f}°,  Pitch θ ≈ {theta_scipy:.1f}°,  Roll φ ≈ {phi_scipy:.1f}°")
