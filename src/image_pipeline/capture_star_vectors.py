@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 from star_frame import StarFrame
 import sys
 from pathlib import Path
+import os 
 
-
+###anastasia: changes threshold value 
 def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, visualize=False):
      # Load grayscale
      img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -18,6 +19,7 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, visual
 
      # Blur and threshold
      blurred = cv2.GaussianBlur(img, (3, 3), 0)  # smaller kernel for speed
+     #small variations (noise) are reduced.
      thresh = np.where(blurred > threshold_val, 255, 0).astype(np.uint8)
 
      # Find connected components (groups of bright pixels)
@@ -76,7 +78,17 @@ def visualize_results(img, thresh, star_data):
      plt.show()
 
 if __name__ == "__main__":
-     IMAGE_PATH = "/Users/michaelcaneff/Documents/University/Sofia University /Space Challenges/space-treckers/src/image_pipeline/Taken Test Images/capture_starfield_1.jpg"
+     ###anastasia: changing the path to this image to be relative
+
+     # Get the folder of the current script
+     script_dir = os.path.dirname(__file__)
+
+     # Build the relative path to the image
+     IMAGE_PATH = os.path.join(script_dir, '..','test', 'test_images', '0RA_0DEC (smaller).jpeg')
+
+     # Normalize the path
+     IMAGE_PATH = os.path.abspath(IMAGE_PATH)
+
      # IMAGE_PATH = "Taken Test Images/capture_starfield_1.jpg"
      IMAGE_PATH1 = "Taken Test Images/capture_starfield_extreme_1.jpg"
      IMAGE_PATH2 = "Taken Test Images/capture_starfield_extreme_2.jpg"

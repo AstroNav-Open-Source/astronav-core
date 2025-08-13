@@ -3,14 +3,14 @@ import sqlite3
 import bisect
 import sys
 import os
+
 from scipy.optimize import linear_sum_assignment  # Added for Hungarian algorithm
 from sqlite_utils import Database
 
-# Add identify_stars folder to sys.path
+# Add file1_folder to sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from db_operations import get_star_info
-
 DB_PATH = r"C:\Users\anast\Documents\star_treckers code\star-treckers\star_catalog.db"
 
 # print("Database path:", DB_PATH)
@@ -21,7 +21,21 @@ DB_PATH = r"C:\Users\anast\Documents\star_treckers code\star-treckers\star_catal
 # # Print all tables
 # print("Tables in the database:", db.table_names())
 
+# #connect to database star_catalog universal 
+# from db_operations import get_star_info
+# # Get folder where this script is located
+# catalog_dir = os.path.dirname(__file__)
 
+# # Path to DB file relative to script location
+# DB_PATH = os.path.join(catalog_dir, "star_catalog.db")
+
+# print("Database path:", DB_PATH)
+# print("File exists?", os.path.exists(DB_PATH))
+
+# db = Database(DB_PATH)
+
+# # Print all tables
+# print("Tables in the database:", db.table_names())
 
 EARLY_SUBGRAPH_STAR_EXIT = 10000
 
