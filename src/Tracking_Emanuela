@@ -2,6 +2,7 @@
 #Tracking
 import cv2 as cv
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 #install opencv-contrib-python
 
 
@@ -95,6 +96,79 @@ cv.waitKey(0)
 cv.destroyAllWindows()
 
 cv.imwrite("output_tracking.jpg", img_tracked)
+
+#trasform the coordinates to arrays
+ood_old = good_old.reshape(-1, 2)
+good_new = good_new.reshape(-1, 2)
+displacement = good_new - good_old
+
+#Transforms pixels in 3d vectors
+#input:
+#points-list or array of 2D pixel coordinates (u,v)
+#fx,fy-focal lengths in pixels along x and y axes
+#cx,cy- coordinates of the center of the image
+def pixel_to_unit_vector(points, fx, fy, cx, cy):
+    vectors = []
+    for u, v in points:
+        x = (u - cx) / fx
+        y = (v - cy) / fy
+        z = 1.0 #arbitrary
+        vec = np.array([x, y, z])
+        vec /= np.linalg.norm(vec) #normalization
+        vectors.append(vec)
+    return np.array(vectors)
+
+#camera intrinsics
+h, w = gray.shape
+fx = fy = 800 
+cx = w / 2
+cy = h / 2
+
+#compute the 3d unit vectors
+v1 = pixel_to_unit_vector(good_old, fx, fy, cx, cy)
+v2 = pixel_to_unit_vector(good_new, fx, fy, cx, cy)
+
+# Kabsch algorithm
+def estimate_rotation(v1, v2):
+    v1_mean = np.mean(v1, axis=0)
+    v2_mean = np.mean(v2, axis=0)   #Find the average vector in each set.('axis=0'=>computes the mean along the rows, for each column separately.)
+
+    v1_centered = v1 - v1_mean
+    v2_centered = v2 - v2_mean  #makes them zero-centered for covariance calculation.
+
+    H = v1_centered.T @ v2_centered #covariance magtrix
+    
+#compute singular value decomposition
+    U, S, Vt = np.linalg.svd(H)  #H= U * S * Vt.(U and Vt are orthogonal matrices, S diagonal.)
+
+#compute the best matrix that aligns v1 and v2
+    R_matrix = Vt.T @ U.T
+
+#correction in case of reflection
+    if np.linalg.det(R_matrix) < 0:
+        Vt[-1, :] *= -1
+        R_matrix = Vt.T @ U.T
+    
+    rot = R.from_matrix(R_matrix)
+    return rot
+rot=estimate_rotation(v1, v2)
+
+
+print("Rotation matrix:\n", rot.as_matrix())
+print("Quaternion [x, y, z, w]:", rot.as_quat())
+print("Euler angles [°]:", rot.as_euler('xyz', degrees=True))
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
