@@ -14,6 +14,8 @@ from star_processing import process_star_image, capture_image
 from quaternion_calculations import propagate_orientation, quat_to_euler, quat2dict, dict2quat, quat_to_euler_scipy, quaternion_angular_distance
 from catalog_pipeline.real_image_valuation import lost_in_space
 
+# Add folder "catalog_pipeline" to sys.path
+sys.path.append(os.path.join(os.path.dirname(__file__), '../catalog_pipeline'))
 
 class TestRotationalAccuracyFromImages(unittest.TestCase):
      """
