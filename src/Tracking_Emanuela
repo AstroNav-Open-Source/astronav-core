@@ -1,0 +1,100 @@
+
+#Tracking
+import cv2 as cv
+import numpy as np
+#install opencv-contrib-python
+
+
+#using the Harris Corner algorythm to detect the features(stars)
+#First image
+
+filename = 'src/test/test_images/0RA_0DEC.jpeg'
+img = cv.imread(filename)                   #choose the image 
+gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY)   #trasform it in grayscale(the 'cornerHarris' function works using only brightness)
+
+gray_f= np.float32(gray)                     #the pixel values are represented as 32-bit floating point numbers because the function performs mathematical operations=>needs decimal precision
+
+#Running the Corner Harris detector
+#input: 
+# image (grayscale,32 float)
+# block_size: size of the window considered around each pixel 
+# k_size:Sobel operator kernel(bigger kernel=>bigger window,less details)(Sobel detects how pixel intensities change in the x and y directions)
+# Harris detector free parameter: a sensitivity factor(Smaller k values tend to detect more corners)
+dst = cv.cornerHarris(gray_f,2,3,0.04)
+
+#result is dilated for marking the corners (optional)
+dst = cv.dilate(dst,None)
+
+# Boolean mask, the minimum value detected is 0.1%of the maximum value detected
+threshold = 0.01 * dst.max()
+bool_mask = dst > threshold
+img[bool_mask]=[0,0,255] #colors the corner pixels red wherever the mask is True
+
+cv.imshow('dst',img)            #show the image
+if cv.waitKey(0) & 0xff == 27:  #waits indefinetely and when the esc key is pressed it closes the window
+    cv.destroyAllWindows()
+    
+#Extract the coordinates from the stars
+corner_points = np.argwhere(bool_mask)       #outputs: indices of the True values of the mask   # (row, col) = (y, x)
+corner_points = corner_points[:, [1, 0]]     # convert to (x, y)
+p0 = corner_points.astype(np.float32).reshape(-1, 1, 2)  # Converts coordinates to float32, as required by cv.calcOpticalFlowPyrLK()
+                                                        #.reshape(-1, 1, 2):-1- automatical determination of the number of points (N)
+                                                        #                    1- adds a dimension so each point is in its own wrapper.
+                                                        #                    2- coordinates per point.
+print (p0)
+
+
+#Second image
+filename2='src/test/test_images/0RA_45DEC.jpeg'
+img_2=cv.imread(filename2)
+gray2=cv.cvtColor(img_2,cv.COLOR_BGR2GRAY)
+gray2_f=np.float32(gray2)
+dst2 = cv.cornerHarris(gray2_f,2,3,0.04)
+threshold2 = 0.01 * dst2.max()
+bool_mask2 = dst2 > threshold2
+img_2[bool_mask2]=[0,0,255]
+cv.imshow('dst',img_2)       
+if cv.waitKey(0) & 0xff == 27:  
+    cv.destroyAllWindows()
+
+# Parameters for lucas kanade optical flow:
+#winsize- pixel region around each feature point
+#3 pyramid levels are used: level 0 (original image), level 1 (half size), and level 2 (quarter size). (this is to handle larger movements)
+#termination condition-Stop if either:10 iterations are reached OR the motion estimate changes by less than 0.03
+lk_params = dict( winSize = (15, 15),
+                maxLevel = 2,
+                criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT,
+                            10, 0.03))
+#Lucas Kanade algorithm
+#INPUTS:
+#2 images(grayscale,np.uint8)
+#p0-points in first image
+#lk_params-parameters
+#OUTPUTS:
+#p1-coordinates of the points in the second picture
+#status array-1 if flow was found for that point, 0 if not. Shape: (N, 1)
+#Error for each point (difference between actual and predicted). Shape: (N, 1)
+
+p1, st, err = cv.calcOpticalFlowPyrLK(gray,gray2, p0, None, **lk_params)
+
+
+#boolean mask
+good_old = p0[st == 1]  #filters only the points that were successfully tracked in the first image
+good_new = p1[st == 1]
+
+img_tracked = img_2.copy() #copy of the second image to draw the motion vectors
+for old, new in zip(good_old, good_new):
+    a, b = new.ravel()  #to access x and y as individual variables
+    c, d = old.ravel()
+    cv.line(img_tracked, (int(c), int(d)), (int(a), int(b)), (0, 255, 0), 2)
+    cv.circle(img_tracked, (int(a), int(b)), 3, (0, 0, 255), -1)
+
+# --- Step 5: Display the result ---
+cv.imshow("Tracked Features (Lucas-Kanade)", img_tracked)
+cv.waitKey(0)
+cv.destroyAllWindows()
+
+cv.imwrite("output_tracking.jpg", img_tracked)
+
+
+
