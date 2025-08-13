@@ -15,7 +15,7 @@ from typing import Tuple, Optional
 MAC_IP = "192.168.0.2"
 MAC_PORT = 9001
 PUBLISH_RATE_HZ = 10
-FOV_DEGREES = 40.0
+FOV_DEGREES =60.0
 
 # Try to import IMU libraries (install with: pip install adafruit-circuitpython-bno055)
 try:

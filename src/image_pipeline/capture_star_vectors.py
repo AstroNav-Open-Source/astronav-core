@@ -25,7 +25,7 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, visual
      num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(thresh)
 
      star_data = []
-     fov_deg = 70  # Approx horizontal FOV of ArduCam
+     fov_deg = 60  # Approx horizontal FOV of ArduCam
      focal_length = w / (2 * np.tan(np.deg2rad(fov_deg / 2)))
 
      for i in range(1, num_labels):
