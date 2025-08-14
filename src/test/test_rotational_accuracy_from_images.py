@@ -31,8 +31,23 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
      def tearDown(self):
           """Clean up after individual test."""
           pass
+     
+     def get_right_ascension_and_declination_from_rotation_matrix(self, rot_matrix1):
+          """
+          Get the right ascension and declination from a rotation matrix.
+          """
+          body_vec = np.array([0.0, 0.0, 1.0])
+          inertial_vec = rot_matrix1 @ body_vec
+          inertial_vec = inertial_vec / np.linalg.norm(inertial_vec)
+          x, y, z = inertial_vec
+          dec_rad = np.arcsin(np.clip(z, -1, 1))
+          ra_rad = np.arctan2(y, x)
+          ra_deg = np.degrees(ra_rad) % 360
+          dec_deg = np.degrees(dec_rad)
+          print(f"RA: {ra_deg}°, Dec: {dec_deg}°")
+          return ra_deg, dec_deg
 
-     def get_right_ascension_and_declination_from_rotation_matrix(self, rot_matrix1, expected_ra=0.0, expected_dec=0.0):
+     def get_right_ascension_and_declination_from_rotation_matrix_systematically(self, rot_matrix1, expected_ra=0.0, expected_dec=0.0):
           """
           Systematically test all 6 cardinal directions to find the actual camera boresight.
           """
@@ -352,21 +367,26 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
                print("Failed to process one or both images")
                return None
           
-          # Convert quaternions to dict format if they're numpy arrays
-          if isinstance(quat1, np.ndarray):
-               quat1_dict = quat2dict(quat1)
-          else:
-               quat1_dict = quat1
-               
-          if isinstance(quat2, np.ndarray):
-               quat2_dict = quat2dict(quat2)
-          else:
-               quat2_dict = quat2
-          
-          distance = quaternion_angular_distance(quat1_dict, quat2_dict)
+          distance = quaternion_angular_distance(quat1, quat2)
           print(f"Distance: {distance}")
           return distance
      
+     def test_rotational_accuracy_from_120RA_80DEC(self):
+          """Test rotational accuracy from 120RA_80DEC."""
+          # Get the test images
+          test_images = self.discover_test_images()
+          
+          # For now, let's just print what we found
+          print(f"\nTest images found: {len(test_images)}")
+          test_image = test_images['120RA_80DEC']
+          print(f"Test image: {test_image}")
+          test_image_path = test_image['path']
+          quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=False)
+          print(f"Quat1: {quat1}")
+          ra_deg, dec_deg = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
+          
+
+
      def test_rotational_accuracy_between_0_and_45_dec(self):
           """Test rotational accuracy between images."""
           # Get the test images
@@ -413,7 +433,8 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
           test_image_path = test_image['path']
           quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=False)
           print(f"Quat1: {quat1}")
-          _ , _ = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
+          ra_deg, dec_deg = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
+
 
      def test_rotational_accuracy_from_0ran_45dec(self):
           """Test rotational accuracy from 0RA_45DEC."""
@@ -429,5 +450,6 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
           quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=False)
           print(f"Quat1: {quat1}")
           _ , _ = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
+          
 if __name__ == "__main__":
      unittest.main()

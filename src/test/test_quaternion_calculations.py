@@ -89,62 +89,93 @@ class TestQuaternionCalculations(unittest.TestCase):
                 self.assertAlmostEqual(custom_roll, scipy_roll, delta=5.0)
     
      def test_propagate_orientation(self):
-        """Test propagate_orientation function logic."""
-        
-        # Test case 1: No IMU movement - should return original star reference
-        print("Test 1: No IMU movement")
-        q_star_ref = {"w": 0.7071, "x": 0.7071, "y": 0, "z": 0}  # Some star orientation
-        q_imu_ref = {"w": 1, "x": 0, "y": 0, "z": 0}   # IMU reference (identity)
-        q_imu_curr = {"w": 1, "x": 0, "y": 0, "z": 0}  # IMU current (same as reference)
-        
-        result1 = propagate_orientation(q_star_ref, q_imu_ref, q_imu_curr)
-        
-        print(f"  Star ref:  {quat_to_euler(q_star_ref)}")
-        print(f"  IMU ref:   {quat_to_euler(q_imu_ref)}")  
-        print(f"  IMU curr:  {quat_to_euler(q_imu_curr)}")
-        print(f"  Result:    {quat_to_euler(result1)}")
-        
-        # Should be approximately the same as star reference
-        star_euler = quat_to_euler(q_star_ref)
-        result_euler = quat_to_euler(result1)
-        print(f"  Expected: Star ref unchanged")
-        print(f"  Actual: {'PASS' if abs(star_euler[0] - result_euler[0]) < 1 else 'FAIL'}")
-        
-        # Test case 2: IMU rotates 90° - what should happen?
-        print("\nTest 2: IMU rotates 90° around Z")
-        q_star_ref = {"w": 1, "x": 0, "y": 0, "z": 0}  # Identity star orientation
-        q_imu_ref = {"w": 1, "x": 0, "y": 0, "z": 0}   # IMU starts at identity
-        q_imu_curr = {"w": 0.7071, "x": 0, "y": 0, "z": 0.7071}  # IMU rotates 90° Z
-        
-        result2 = propagate_orientation(q_star_ref, q_imu_ref, q_imu_curr)
-        
-        print(f"  Star ref:  {quat_to_euler(q_star_ref)}")
-        print(f"  IMU ref:   {quat_to_euler(q_imu_ref)}")  
-        print(f"  IMU curr:  {quat_to_euler(q_imu_curr)}")
-        print(f"  Result:    {quat_to_euler(result2)}")
-        
-        # Test case 3: Check if the math makes sense
-        print("\nTest 3: Mathematical consistency check")
-        
-        # If we apply the same transformation twice, do we get double the rotation?
-        q_star_ref = {"w": 1, "x": 0, "y": 0, "z": 0}
-        q_imu_ref = {"w": 1, "x": 0, "y": 0, "z": 0}
-        q_imu_45 = {"w": 0.9239, "x": 0, "y": 0, "z": 0.3827}  # 45° rotation
-        q_imu_90 = {"w": 0.7071, "x": 0, "y": 0, "z": 0.7071}  # 90° rotation
-        
-        result_45 = propagate_orientation(q_star_ref, q_imu_ref, q_imu_45)
-        result_90 = propagate_orientation(q_star_ref, q_imu_ref, q_imu_90)
-        
-        yaw_45 = quat_to_euler(result_45)[0]
-        yaw_90 = quat_to_euler(result_90)[0]
-        
-        print(f"  45° IMU rotation -> Star yaw: {yaw_45:.1f}°")
-        print(f"  90° IMU rotation -> Star yaw: {yaw_90:.1f}°")
-        print(f"  Ratio: {yaw_90/yaw_45:.2f} (should be ~2.0 if linear)")
-        
-        print("="*50)
-        print("Audit complete - check the logic above!")
-        print("="*50)
+          """Test propagate_orientation function logic."""
+
+          # Test case 1: No IMU movement - should return original star reference
+          print("Test 1: No IMU movement")
+          q_star_ref = {"w": 0.7071, "x": 0.7071, "y": 0, "z": 0}  # Some star orientation
+          q_imu_ref = {"w": 1, "x": 0, "y": 0, "z": 0}   # IMU reference (identity)
+          q_imu_curr = {"w": 1, "x": 0, "y": 0, "z": 0}  # IMU current (same as reference)
+
+          result1 = propagate_orientation(q_star_ref, q_imu_ref, q_imu_curr)
+
+          print(f"  Star ref:  {quat_to_euler(q_star_ref)}")
+          print(f"  IMU ref:   {quat_to_euler(q_imu_ref)}")  
+          print(f"  IMU curr:  {quat_to_euler(q_imu_curr)}")
+          print(f"  Result:    {quat_to_euler(result1)}")
+
+          # Should be approximately the same as star reference
+          star_euler = quat_to_euler(q_star_ref)
+          result_euler = quat_to_euler(result1)
+          print(f"  Expected: Star ref unchanged")
+          print(f"  Actual: {'PASS' if abs(star_euler[0] - result_euler[0]) < 1 else 'FAIL'}")
+
+          # Test case 2: IMU rotates 90° - what should happen?
+          print("\nTest 2: IMU rotates 90° around Z")
+          q_star_ref = {"w": 1, "x": 0, "y": 0, "z": 0}  # Identity star orientation
+          q_imu_ref = {"w": 1, "x": 0, "y": 0, "z": 0}   # IMU starts at identity
+          q_imu_curr = {"w": 0.7071, "x": 0, "y": 0, "z": 0.7071}  # IMU rotates 90° Z
+
+          result2 = propagate_orientation(q_star_ref, q_imu_ref, q_imu_curr)
+
+          print(f"  Star ref:  {quat_to_euler(q_star_ref)}")
+          print(f"  IMU ref:   {quat_to_euler(q_imu_ref)}")  
+          print(f"  IMU curr:  {quat_to_euler(q_imu_curr)}")
+          print(f"  Result:    {quat_to_euler(result2)}")
+
+          # Test case 3: Check if the math makes sense
+          print("\nTest 3: Mathematical consistency check")
+
+          # If we apply the same transformation twice, do we get double the rotation?
+          q_star_ref = {"w": 1, "x": 0, "y": 0, "z": 0}
+          q_imu_ref = {"w": 1, "x": 0, "y": 0, "z": 0}
+          q_imu_45 = {"w": 0.9239, "x": 0, "y": 0, "z": 0.3827}  # 45° rotation
+          q_imu_90 = {"w": 0.7071, "x": 0, "y": 0, "z": 0.7071}  # 90° rotation
+
+          result_45 = propagate_orientation(q_star_ref, q_imu_ref, q_imu_45)
+          result_90 = propagate_orientation(q_star_ref, q_imu_ref, q_imu_90)
+
+          yaw_45 = quat_to_euler(result_45)[0]
+          yaw_90 = quat_to_euler(result_90)[0]
+
+          print(f"  45° IMU rotation -> Star yaw: {yaw_45:.1f}°")
+          print(f"  90° IMU rotation -> Star yaw: {yaw_90:.1f}°")
+          print(f"  Ratio: {yaw_90/yaw_45:.2f} (should be ~2.0 if linear)")
+
+          print("="*50)
+          print("Audit complete - check the logic above!")
+          print("="*50)
+
+     def test_quaternion_math_verification(self):
+          """Verify quaternion angular distance calculation with known rotations."""
+          print("\n" + "="*50)
+          print("Testing Quaternion Math Verification")
+          print("="*50)
+          
+          # Test 1: Identity quaternions should have 0° difference
+          q_identity1 = np.array([0, 0, 0, 1])  # [x,y,z,w] format
+          q_identity2 = np.array([0, 0, 0, 1])
+          distance = quaternion_angular_distance(q_identity1, q_identity2)
+          print(f"Identity quaternions distance: {distance:.2f}° (expected: 0°)")
+          
+          # Test 2: 45° rotation around Z axis
+          import math
+          angle = math.radians(45)
+          q_45z = np.array([0, 0, math.sin(angle/2), math.cos(angle/2)])  # [x,y,z,w]
+          distance = quaternion_angular_distance(q_identity1, q_45z)
+          print(f"45° Z rotation distance: {distance:.2f}° (expected: 45°)")
+          
+          # Test 3: 90° rotation around Z axis  
+          angle = math.radians(90)
+          q_90z = np.array([0, 0, math.sin(angle/2), math.cos(angle/2)])  # [x,y,z,w]
+          distance = quaternion_angular_distance(q_identity1, q_90z)
+          print(f"90° Z rotation distance: {distance:.2f}° (expected: 90°)")
+          
+          # Test 4: 180° rotation around Z axis
+          angle = math.radians(180)
+          q_180z = np.array([0, 0, math.sin(angle/2), math.cos(angle/2)])  # [x,y,z,w]
+          distance = quaternion_angular_distance(q_identity1, q_180z)
+          print(f"180° Z rotation distance: {distance:.2f}° (expected: 180°)")
 
 
 if __name__ == "__main__":
