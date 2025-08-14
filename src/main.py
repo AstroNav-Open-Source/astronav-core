@@ -8,6 +8,11 @@ from star_processing import process_star_image, capture_image
 from quaternion_calculations import propagate_orientation , quat_to_euler
 import star_processing
 from publish_udp import OrientationPublisher, MAC_PORT, MAC_IP
+from IMU_calibration.bno055_calibration import run_calibration
+
+#automatically load saved calibration values for IMU
+run_calibration()
+
 
 # from imu_readings import get_quaternion , calibrate
 DEFAULT_IMAGE_PATH = Path(__file__).parent / "image_pipeline" / "starfield.png"
