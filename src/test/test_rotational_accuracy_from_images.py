@@ -352,6 +352,7 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
                'roll_diff': roll_diff,
                'max_diff': max(yaw_diff, pitch_diff, roll_diff)
           }
+          
      def test_quaternion_angular_distance(self, image1_path, image2_path):
           """
           Calculate the rotational difference between two images.

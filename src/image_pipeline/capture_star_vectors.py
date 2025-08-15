@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from skimage import feature
 import matplotlib.pyplot as plt
-from star_frame import StarFrame
+from .star_frame import StarFrame
 import sys
 from pathlib import Path
 
@@ -37,10 +37,10 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, visual
                mask = (labels == i).astype(np.uint8)
                intensity = np.mean(img[mask == 1])
 
-               # Create vector (normalized)
-               dx = x - cx
-               dy = y - cy
-               v = np.array([dx, dy, focal_length])
+               focal_length = w / (2 * np.tan(np.deg2rad(fov_deg / 2)))
+               dx = (x - cx) / focal_length
+               dy = (y - cy) / focal_length
+               v = np.array([dx, dy, 1])
                v_unit = v / np.linalg.norm(v)
 
                star_data.append({
