@@ -451,6 +451,23 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
           quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=False)
           print(f"Quat1: {quat1}")
           _ , _ = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
+
+
+     def test_rotational_accuracy_from_0ran_0dec_66fov_prepsective(self):
+          """Test rotational accuracy from 0RA_0DEC_66FOV_PRESPRECTIVE."""
+          # Get the test images
+          test_images = self.discover_test_images()
+          
+          # For now, let's just print what we found
+          print(f"\nTest images found: {len(test_images)}")
+          test_image = test_images['0RA_0DEC_66FOV_PSTV']
+          print(f"Test image: {test_image}")
+
+          test_image_path = test_image['path']
+          quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=True, fov_deg=66)
+          
+          print(f"Quat1: {quat1}")
+          _ , _ = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
           
 if __name__ == "__main__":
      unittest.main()

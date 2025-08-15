@@ -10,9 +10,9 @@ from image_pipeline.capture_star_vectors import detect_stars
 from .identify_stars import identify_stars_from_vectors, get_identified_star_info
 from .radec_to_vec import radec_to_vec
 
-def lost_in_space(image_path, visualize=False):
+def lost_in_space(image_path, visualize=False, fov_deg=None):
     print(f"Processing image: {image_path}")
-    img, thresh, star_data = detect_stars(image_path, visualize=visualize)
+    img, thresh, star_data = detect_stars(image_path, visualize=visualize, fov_deg=fov_deg)
     print(f"Detected {len(star_data)} stars.")
     if len(star_data) < 2:
         print("Not enough stars detected for identification.")

@@ -34,10 +34,11 @@ def pixels_to_unit_rays(pixels, K):
 
      return np.array(rays)
 
-def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, fov_deg=20, visualize=False):
+def detect_stars(image_path, threshold_val=220, min_area=5, max_area=500, fov_deg= 60, visualize=False):
      """
      Detect stars in an image and convert their positions to 3D unit vectors in camera coordinates.
      """
+     print(f"Detecting stars with fov_deg={fov_deg}")
      img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
      if img is None:
           raise FileNotFoundError(f"Image '{image_path}' not found.")
@@ -65,7 +66,7 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, fov_de
                intensity = np.mean(img[mask == 1])
 
                # Project pixel to 3D unit ray
-               vector = pixels_to_unit_rays([[x, y]], K)
+               vector = pixels_to_unit_rays([[x, y]], K)[0]  # Extract single vector from (1,3) array
                star_data.append({
                     "position": (x, y),
                     "radius": r,

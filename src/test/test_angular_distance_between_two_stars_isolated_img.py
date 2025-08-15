@@ -16,7 +16,7 @@ from image_pipeline.star_frame import StarFrame
 def angular_distance_between_two_stars_isolated_img():
      # Load the image
      image_path = "src/test/test_images/testw2stars.png"
-     img, thresh, star_data = detect_stars(image_path, visualize=False)
+     img, thresh, star_data = detect_stars(image_path, visualize=False, fov_deg=20)
      
      # Extract just the vectors and flatten them
      vectors = [star["vector"].flatten() for star in star_data]
