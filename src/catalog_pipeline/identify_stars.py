@@ -1,6 +1,9 @@
 import numpy as np
 import sqlite3
 import bisect
+import scipy
+from pathlib import Path
+from typing import List, Tuple, Dict, Optional
 import os
 from .db_operations import get_star_info
 from scipy.optimize import linear_sum_assignment  # Added for Hungarian algorithm

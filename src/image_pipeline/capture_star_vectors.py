@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from skimage import feature
+# from skimage import feature
 import matplotlib.pyplot as plt
 from star_frame import StarFrame
 import sys
@@ -76,14 +76,14 @@ def visualize_results(img, thresh, star_data):
      plt.show()
 
 if __name__ == "__main__":
-     IMAGE_PATH = "/Users/michaelcaneff/Documents/University/Sofia University /Space Challenges/space-treckers/src/image_pipeline/Taken Test Images/capture_starfield_1.jpg"
+     IMAGE_PATH = "D:/Users/admin/Pictures/Stellarium/sky_ra45.0_dec0.0_fov69.3.png001.png"
      # IMAGE_PATH = "Taken Test Images/capture_starfield_1.jpg"
-     IMAGE_PATH1 = "Taken Test Images/capture_starfield_extreme_1.jpg"
-     IMAGE_PATH2 = "Taken Test Images/capture_starfield_extreme_2.jpg"
+     IMAGE_PATH1 = "D:/Users/admin/Pictures/Stellarium/sky_ra45.0_dec0.0_fov69.3.png001.png"
+     IMAGE_PATH2 = "D:/Users/admin/Pictures/Stellarium/sky_ra0.0_dec45.0_fov69.3.png001.png"
      if not Path(IMAGE_PATH).exists():
           print(f"Warning: Image not found at {IMAGE_PATH}")
           print("Available images in directory:")
-          for img_file in Path().glob("Taken Test Images/*.jpg"):
+          for img_file in Path().glob("Stellarium/*.jpg"):
                print(f"  - {img_file}")
           sys.exit(1)
      try:

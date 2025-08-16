@@ -7,15 +7,18 @@ import time
 from star_processing import process_star_image, capture_image 
 from quaternion_calculations import propagate_orientation , quat_to_euler
 import star_processing
-from publish_udp import OrientationPublisher, MAC_PORT, MAC_IP
-from IMU_calibration.bno055_calibration import run_calibration
+#from publish_udp import OrientationPublisher, MAC_PORT, MAC_IP
+#from IMU_calibration.bno055_calibration import run_calibration
+
+import numpy as np
+from catalog_pipeline.radec_to_vec import vec_to_radec
 
 #automatically load saved calibration values for IMU
-run_calibration()
+#run_calibration()
 
 
 # from imu_readings import get_quaternion , calibrate
-DEFAULT_IMAGE_PATH = Path(__file__).parent / "image_pipeline" / "starfield.png"
+DEFAULT_IMAGE_PATH = Path(__file__).parent / "D:"/ "Users" / "admin" / "Pictures" / "Stellarium" / "sky_ra45.0_dec0.0_fov69.3.png001.png"
 
 def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
      
@@ -36,6 +39,13 @@ def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
           print("Processing complete!")
           print("Quaternion:", quaternion_star)
           print("Rotation Matrix:", rotation_matrix)
+          vector = np.array([0, 0, 1])
+          result = np.dot(rotation_matrix, vector)
+          print("Normalizeds Vector:", result)
+          ra, dec = vec_to_radec(result)
+          print(f"RA: {ra:.2f}°, Dec: {dec:.2f}°")
+
+
      else:
           print("Failed to process image.")
 
