@@ -6,3 +6,5 @@ Augmented-DeepSpaceYolo/
 runs/
 wheels_pi/
 venv2/
+/myenv
+.vscode/settings.json

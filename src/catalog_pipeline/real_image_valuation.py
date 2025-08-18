@@ -20,7 +20,7 @@ def lost_in_space(image_path, visualize=False):
 
     detected_vectors = [star["vector"] for star in star_data[:MAX_OBSERVED_STAR_CALCS]]
 
-    angle_tolerance = 0.1  # degrees, can be tuned
+    angle_tolerance = 0.2  # degrees, can be tuned
     matches = identify_stars_from_vectors(detected_vectors, angle_tolerance=angle_tolerance, limit=20)
     identified = get_identified_star_info(matches)
 

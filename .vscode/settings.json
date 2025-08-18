@@ -11,5 +11,8 @@
      
      "python.testing.pytestArgs": [
           "src", "-s"
+     ],
+     "python.analysis.extraPaths": [
+          "./src/catalog_pipeline"
      ]
 }

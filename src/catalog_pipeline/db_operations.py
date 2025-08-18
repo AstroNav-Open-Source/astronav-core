@@ -43,6 +43,6 @@ def get_star_info(star_id, db_path='star_catalog.db'):
     return results
 
 if __name__ == "__main__":
-    print(get_pairs_by_angle_error_margin(30, 0.001, entries_limit=3))
+    print(get_pairs_by_angle_error_margin(30, 1, entries_limit=10))
     print(get_star_info(50935))
     print(get_angular_distance_between_stars(50935, 59774))
