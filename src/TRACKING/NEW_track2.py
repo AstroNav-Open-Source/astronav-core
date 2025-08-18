@@ -147,8 +147,8 @@ def draw_center_to_star_vectors(img, points, cx, cy, color=(255, 0, 0)):
 
 
 if __name__ == "__main__":
-    img1= cv.imread(r"src/test/test_images/Tracking_test/0RA_0.5DEC.FOV(70).png")
-    img2= cv.imread(r"src\test\test_images\Tracking_test\0RA_0DEC_FOV(70).png")
+    img1= cv.imread("src/test/test_images/Tracking_test/0RA_31DEC_FOV(70).png")
+    img2= cv.imread("src/test/test_images/Tracking_test/0RA_30DEC_FOV(70).png")
 
     cx,cy,fx,fy=get_intrinsics(img1)
     img_processed1=processing_image(img1)
@@ -215,16 +215,12 @@ if __name__ == "__main__":
     cv.imwrite("output_center_vectors.jpg", img_center_vecs)
 
     img_center_vecs2=draw_center_to_star_vectors(img1, good_old, cx, cy,color=(0, 0, 255))
-    
     cv.imshow("Center-to-Star Vectors", img_center_vecs2)
     cv.waitKey(0)
     cv.destroyAllWindows()
 
     cv.imwrite("output_center_vectors.jpg", img_center_vecs2)
-    displacement= good_new - good_old
-    deg_pixel=fov_deg/h
-    real_displacement=displacement*deg_pixel
-    print(real_displacement)
+    
     
     displacement = good_new - good_old        # shape (N,2), each row is (dx, dy)
     deg_pixel = fov_deg / h
@@ -241,7 +237,9 @@ if __name__ == "__main__":
     mean_disp = np.mean(magnitudes)
     print(f"\nMean displacement = {mean_disp}")
 
-  
+    
+
+
 
     '''
     #compute the unit vectors
