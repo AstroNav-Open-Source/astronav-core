@@ -35,7 +35,7 @@ def pixel_to_unit_vector(points, cx, cy, fx, fy):
     for u,v in points:
         x = (u - cx) 
         y = (v - cy)  # flip Y to make up = north
-        z = 1.0
+        z = 0
         vec = np.array([x, y, z])
         #vec /= np.linalg.norm(vec)
         vectors.append(vec)
@@ -65,7 +65,7 @@ def estimate_rotation(v1, v2):
     return rot
 
 lk_params = dict( winSize = (31, 31),
-                maxLevel =0,
+                maxLevel =2,
                 criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT,150, 0.001),
                 flags=cv.OPTFLOW_LK_GET_MIN_EIGENVALS,
                 minEigThreshold=1e-5
@@ -125,6 +125,24 @@ def build_cam_to_eq(RA0_deg, DEC0_deg, roll_deg=0.0):
     # Construct matrix: columns are cam axes in EQ frame
     R_cam2eq = np.column_stack([x_eq, y_eq, z_eq])
     return R_cam2eq
+
+def draw_center_to_star_vectors(img, points, cx, cy, color=(255, 0, 0)):
+    """
+    Draw arrows from the image center to each detected star (feature point).
+    """
+    img_out = img.copy()
+
+    for pt in points:
+        x, y = pt.ravel()
+        cv.arrowedLine(img_out, (int(cx), int(cy)), (int(x), int(y)), color, 2, tipLength=0.2)
+        cv.circle(img_out, (int(x), int(y)), 3, (0, 255, 0), -1)  # mark the star
+
+    return img_out
+
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -186,8 +204,23 @@ if __name__ == "__main__":
     cv.imwrite("output_tracking.jpg", img_tracked)
     
 
+# --- Draw on second image using tracked points ---
+    img_center_vecs = draw_center_to_star_vectors(img2, good_new, cx, cy)
 
+    cv.imshow("Center-to-Star Vectors", img_center_vecs)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
 
+    cv.imwrite("output_center_vectors.jpg", img_center_vecs)
+
+    img_center_vecs2=draw_center_to_star_vectors(img1, good_old, cx, cy,color=(0, 0, 255))
+    
+    cv.imshow("Center-to-Star Vectors", img_center_vecs2)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
+    cv.imwrite("output_center_vectors.jpg", img_center_vecs2)
+    
 
 
     '''
