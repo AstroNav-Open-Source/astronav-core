@@ -146,8 +146,8 @@ def draw_center_to_star_vectors(img, points, cx, cy, color=(255, 0, 0)):
 
 
 if __name__ == "__main__":
-    img1= cv.imread("c:/Users/emanu/Downloads/WhatsApp Image 2025-08-18 at 12.25.29.jpeg")
-    img2= cv.imread( r"c:\Users\emanu\Downloads\WhatsApp Image 2025-08-18 at 12.32.48.jpeg")
+    img1= cv.imread(r"src/test/test_images/Tracking_test/0RA_0.5DEC.FOV(70).png")
+    img2= cv.imread(r"src\test\test_images\Tracking_test\0RA_0DEC_FOV(70).png")
 
     cx,cy,fx,fy=get_intrinsics(img1)
     img_processed1=processing_image(img1)
