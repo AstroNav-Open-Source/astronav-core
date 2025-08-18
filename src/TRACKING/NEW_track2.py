@@ -4,7 +4,8 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 #install opencv-contrib-python
 
-def get_intrinsics (img, fov_deg =5):
+fov_deg =70
+def get_intrinsics (img):
     h, w =  img.shape[:2]
     fov_rad= np.radians(fov_deg)# Approx horizontal FOV
     fx = w / (2.0 * np.tan(fov_rad / 2.0))      # fov_rad = horizontal FOV
@@ -220,8 +221,14 @@ if __name__ == "__main__":
     cv.destroyAllWindows()
 
     cv.imwrite("output_center_vectors.jpg", img_center_vecs2)
+    displacement= good_new - good_old
+    deg_pixel=fov_deg/h
+    real_displacement=displacement*deg_pixel
+    print(real_displacement)
+    
     
 
+  
 
     '''
     #compute the unit vectors
