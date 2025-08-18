@@ -226,7 +226,20 @@ if __name__ == "__main__":
     real_displacement=displacement*deg_pixel
     print(real_displacement)
     
+    displacement = good_new - good_old        # shape (N,2), each row is (dx, dy)
+    deg_pixel = fov_deg / h
+    real_displacement = displacement * deg_pixel
+
+    # Compute total displacement (magnitude) for each vector
+    magnitudes = np.linalg.norm(real_displacement, axis=1)
+
+    # Print displacement for every vector
+    for i, m in enumerate(magnitudes):
+        print(f"Vector {i}: displacement = {m}")
     
+    # Compute and print mean displacement
+    mean_disp = np.mean(magnitudes)
+    print(f"\nMean displacement = {mean_disp}")
 
   
 
