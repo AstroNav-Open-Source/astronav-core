@@ -6,11 +6,11 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 from star_frame import StarFrame
 
-def make_K_from_fov(w, h, fov_deg_x):
+def make_K_from_fov(w, h, fov_deg):
      """
      Build the camera intrinsic matrix from horizontal FOV.
      """
-     fx = (w / 2.0) / np.tan(np.deg2rad(fov_deg_x / 2.0))
+     fx = (h / 2.0) / np.tan(np.deg2rad(fov_deg / 2.0))
      fy = fx  # assume square pixels
      cx, cy = w / 2.0, h / 2.0
      K = np.array([ [fx, 0, cx],
@@ -71,7 +71,6 @@ def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, fov_de
      h, w = img.shape
      print(f"Image shape : {img.shape}")
      cx, cy = w // 2, h // 2  # image center
-
 
 
      # Blur and threshold
