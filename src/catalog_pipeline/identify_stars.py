@@ -42,7 +42,7 @@ def query_star_pairs(theta_obs, delta_theta, db_path=DB_PATH, limit=50):
     conn.close()
     return results
 
-def identify_stars_from_vectors(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH, limit=50):
+def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=DB_PATH, limit=50):
     """
     Given detected star unit vectors (shape: N x 3),
     identify likely catalog matches for each detected star by matching pairwise angles.

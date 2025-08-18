@@ -34,7 +34,32 @@ def pixels_to_unit_rays(pixels, K):
 
      return np.array(rays)
 
-def detect_stars(image_path, threshold_val=220, min_area=5, max_area=500, fov_deg= 60, visualize=False):
+def calculate_angular_distances(star_data):
+     """
+     Calculate angular distances between all pairs of stars.
+     """
+     if len(star_data) < 2:
+          return []
+     
+     angular_pairs = []
+     vectors = [star["vector"] for star in star_data]
+     
+     for i in range(len(vectors)):
+          for j in range(i + 1, len(vectors)):
+               dot = np.dot(vectors[i], vectors[j])
+               angle = np.arccos(np.clip(dot, -1, 1))
+               angle_deg = np.degrees(angle)
+               angular_pairs.append({
+                    "star_i": i,
+                    "star_j": j,
+                    "position_i": star_data[i]["position"],
+                    "position_j": star_data[j]["position"],
+                    "angle_deg": angle_deg
+               })
+     
+     return angular_pairs
+
+def detect_stars(image_path, threshold_val=200, min_area=5, max_area=500, fov_deg= 66, visualize=False):
      """
      Detect stars in an image and convert their positions to 3D unit vectors in camera coordinates.
      """
@@ -44,7 +69,10 @@ def detect_stars(image_path, threshold_val=220, min_area=5, max_area=500, fov_de
           raise FileNotFoundError(f"Image '{image_path}' not found.")
 
      h, w = img.shape
+     print(f"Image shape : {img.shape}")
      cx, cy = w // 2, h // 2  # image center
+
+
 
      # Blur and threshold
      blurred = cv2.GaussianBlur(img, (3, 3), 0)  # smaller kernel for speed
