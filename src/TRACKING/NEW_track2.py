@@ -19,19 +19,12 @@ def processing_image (img):
     retval,image_processed = cv.threshold(blurred, 200, 255, cv.THRESH_BINARY)
     return image_processed 
 
-def detector(img,w,h,max_corners,quality_level,min_distance,  margin_x,margin_y): 
+def detector(img,w,h,max_corners,quality_level,min_distance): 
 
     p0 = cv.goodFeaturesToTrack(img, 
                             maxCorners=max_corners, 
                             qualityLevel=quality_level, 
                             minDistance=min_distance)
-    '''filtered_p0 = []
-    for pt in p0:
-        x, y = pt.ravel()
-        if margin_x < x < (w - margin_x) and margin_y < y < (h - margin_y):
-            filtered_p0.append([[x, y]])
-    filtered_p0 = np.array(filtered_p0, dtype=np.float32)
-    p0 = filtered_p0'''
     return p0
 
 #criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 150, 0.01)
@@ -72,7 +65,7 @@ def estimate_rotation(v1, v2):
     return rot
 
 lk_params = dict( winSize = (31, 31),
-                maxLevel =2,
+                maxLevel =0,
                 criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT,150, 0.001),
                 flags=cv.OPTFLOW_LK_GET_MIN_EIGENVALS,
                 minEigThreshold=1e-5
@@ -94,26 +87,7 @@ def radec_to_vector(ra_deg, dec_deg):
     y = np.cos(dec) * np.sin(ra)
     z = np.sin(dec)
     return np.array([x, y, z])
-def draw_vectors_on_image(img, points_old, points_new, cx, cy, fx, fy, scale=100):
-    img_out = img.copy()
 
-    # Convert pixels → camera vectors
-    v_old = pixel_to_unit_vector(points_old, cx, cy, fx, fy)
-    v_new = pixel_to_unit_vector(points_new, cx, cy, fx, fy)
-
-    for (u, v), vec in zip(points_old.astype(int), v_old):
-        dx = int(vec[0] * scale)
-        dy = int(-vec[1] * scale)
-        cv.arrowedLine(img_out, (int(u), int(v)), (int(u + dx), int(v + dy)),
-                       (0, 255, 0), 2, tipLength=0.3)  # green = old
-
-    for (u, v), vec in zip(points_new.astype(int), v_new):
-        dx = int(vec[0] * scale)
-        dy = int(-vec[1] * scale)
-        cv.arrowedLine(img_out, (int(u), int(v)), (int(u + dx), int(v + dy)),
-                       (0, 0, 255), 2, tipLength=0.3)  # red = new
-
-    return img_out
 
 
 def build_cam_to_eq(RA0_deg, DEC0_deg, roll_deg=0.0):
@@ -154,16 +128,15 @@ def build_cam_to_eq(RA0_deg, DEC0_deg, roll_deg=0.0):
 
 
 if __name__ == "__main__":
-    img1= cv.imread( "src/test/test_images/Test_tracking/0RA_0DEC_FOV(70).png")
-    img2= cv.imread( "src/test/test_images/Test_tracking/0RA_(0.1)DEC_FOV(70).png")
+    img1= cv.imread("c:/Users/emanu/Downloads/WhatsApp Image 2025-08-18 at 12.25.29.jpeg")
+    img2= cv.imread( r"c:\Users\emanu\Downloads\WhatsApp Image 2025-08-18 at 12.32.48.jpeg")
 
     cx,cy,fx,fy=get_intrinsics(img1)
     img_processed1=processing_image(img1)
     img_processed2=processing_image(img2)
     h, w =  img1.shape[:2]
-    h1=0.25*h
-    w1=0.25*w
-    p0=detector(img_processed1,w,h,max_corners = 1000,quality_level =0.001,min_distance =3,  margin_x=w1 ,margin_y=h1)
+
+    p0=detector(img_processed1,w,h,max_corners = 1000,quality_level =0.001,min_distance =3, )
     if p0 is None:
         print("No features found in the first image!")
     else:
@@ -213,14 +186,6 @@ if __name__ == "__main__":
     cv.imwrite("output_tracking.jpg", img_tracked)
     
 
-    #draw the vectors
-    img_with_vecs = draw_vectors_on_image(img2, good_old, good_new, cx, cy, fx, fy, scale=80)
-
-    cv.imshow("Old (green) vs New (red) Camera Vectors", img_with_vecs)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
-    cv.imwrite("vectors_comparison.jpg", img_with_vecs)
 
 
 

@@ -9,11 +9,11 @@ def get_intrinsics (img, fov_deg =70):
     fy = fx * (h / w)                       # scale for vertical pixels
     cy = h / 2.0
     cx= w / 2.0
-    return cx,cy,fx,fy
+    return cx,cy,fx,fy,h,w
 
 img1=cv.imread("src/test/test_images/Test_tracking/0RA_0DEC_FOV(5).png")
-cx,cy,fx,fy=get_intrinsics(img1)
-print(cx,cy,fx,fy)
+cx,cy,fx,fy,h,w=get_intrinsics(img1)
+print(cx,cy,fx,fy,h,w)
 
 def estimate_rotation(v1, v2):
     v1_mean = np.mean(v1, axis=0)
@@ -84,34 +84,3 @@ def pixel_to_unit_vector(points, cx, cy, fx, fy):
         vectors.append(vec)
     return np.array(vectors)
 
-def draw_vectors_on_image(img, points, vectors, scale=100, color=(0,255,0)):
-    """
-    Draws arrows for unnormalized camera vectors on the image.
-    - img: input image (BGR)
-    - points: Nx2 array of (u,v) pixel coordinates
-    - vectors: Nx3 array of vectors (not normalized)
-    - scale: multiplier to make arrows visible
-    - color: arrow color (B,G,R)
-    """
-    img_out = img1.copy()
-    for (u, v), vec in zip(points.astype(int), vectors):
-        dx = int(vec[0] * scale)
-        dy = int(-vec[1] * scale)   # flip sign back for display
-
-        start_point = (int(u), int(v))
-        end_point   = (int(u + dx), int(v + dy))
-
-        cv.arrowedLine(img_out, start_point, end_point, color, 2, tipLength=0.3)
-
-    return img_out
-
-
-# Example usage:
-# Assuming you already computed `good_old` and intrinsics
-v_raw = pixel_to_unit_vector(good_old, cx, cy, fx, fy)  # without normalization
-img_with_vecs = draw_vectors_on_image(img1, good_old, v_raw, scale=80, color=(0,0,255))
-
-cv.imshow("Raw Vectors on Image", img_with_vecs)
-cv.waitKey(0)
-cv.destroyAllWindows()
-cv.imwrite("vectors_raw_overlay.jpg", img_with_vecs)
