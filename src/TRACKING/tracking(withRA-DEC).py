@@ -325,23 +325,44 @@ if __name__ == "__main__":
     print('v_eq',v1_eq,v2_eq,v3_eq,v4_eq,v5_eq,v6_eq,v7_eq)    
     v_eq = np.vstack([v1_eq, v2_eq,v3_eq,v4_eq,v5_eq,v6_eq,v7_eq])
     
-    v_cam = np.vstack([v1_cam, v2_cam,v3_cam,v4_cam,v5_cam,v6_cam,v7_cam])
+    v_cam_p0 = np.vstack([v1_cam, v2_cam,v3_cam,v4_cam,v5_cam,v6_cam,v7_cam])
+    print("v_cam_p0, selected:",v_cam_p0)
 
-    rot= estimate_rotation(v_eq, v_cam)
-    print("Rotation matrix:\n", rot.as_matrix())
+    rot_eq_to_cam= estimate_rotation(v_eq, v_cam_p0)
+    rot_cam_to_eq = rot_eq_to_cam.inv()
+    print("Rotation matrix:\n", rot_eq_to_cam.as_matrix())
     
-    predicted_cam = rot.apply(v_eq)
+    predicted_cam = rot_eq_to_cam.apply(v_eq)
     print("Predicted camera vectors:\n", predicted_cam)
-    print("Actual camera vectors:\n", v_cam)
+    print("Actual camera vectors:\n", v_cam_p0)
 
     # measure error
-    errors = np.linalg.norm(predicted_cam - v_cam, axis=1)
+    errors = np.linalg.norm(predicted_cam - v_cam_p0, axis=1)
     print("Errors per star:", errors)
-    
-    v_cam2=p1
-    v_eq2=rot @ v_cam2
-    
-    new_coord=vector_to_radec(v_eq2)
+
+    v_cam_p1 = []
+    for i in range(len(p1)):
+        vi_cam = pixel_to_cam_ray(np.array([p1[i,0]]), cx, cy, fx, fy, flip_y=False)[0]
+        v_cam_p1.append(vi_cam)
+
+    v_cam_p1 = np.vstack(v_cam_p1)
+    print("v_cam_p1, all:",v_cam_p1)
+
+    # #apply rotational matrix to v_cam_p1 to get equatorial coordinates of stars 
+    # v_eq_p1 = rot_cam_to_eq.apply(v_cam_p1)
+    # print(v_eq_p1.shape)  # (N, 3)
+    # print(v_eq_p1)
+
+
+    #convert from 3d vector to RA/DEC for stars from final image 
+
+    final_coords = [vector_to_radec(vec) for vec in v_eq_p1]
+    print(final_coords)
+
+
+
+
+
 
     
     
