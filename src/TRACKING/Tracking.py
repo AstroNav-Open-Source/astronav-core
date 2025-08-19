@@ -193,23 +193,6 @@ if __name__ == "__main__":
     
 
 
-       '''
-    #compute the unit vectors
-    v1 = pixel_to_unit_vector(good_old, cx, cy,fx,fy)
-    v2 = pixel_to_unit_vector(good_new, cx, cy,fx,fy)
-    
-    
-    rot= estimate_rotation(v1, v2)
-    print("Rotation matrix:\n", rot.as_matrix())
-    #print("Quaternion [x, y, z, w]:", rot.as_quat())
- 
-    print("Euler angles [°]:", rot.as_euler('zyx', degrees=True))
-
-    ra_delta = rot.as_euler('zyx', degrees=True)[1]  # Y-axis:  RA (for the open cv coordinate system)
-    dec_delta = rot.as_euler('zyx', degrees=True)[0]  # Z-axis: DE
-
-    print(f"ΔRA ≈ {ra_delta:.4f}°, ΔDEC ≈ {dec_delta:.4f}°")
-'''
 
 
 

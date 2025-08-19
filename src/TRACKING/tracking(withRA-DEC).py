@@ -337,7 +337,11 @@ if __name__ == "__main__":
     # measure error
     errors = np.linalg.norm(predicted_cam - v_cam, axis=1)
     print("Errors per star:", errors)
-
+    
+    v_cam2=p1
+    v_eq2=rot @ v_cam2
+    
+    new_coord=vector_to_radec(v_eq2)
 
     
     
@@ -352,28 +356,3 @@ if __name__ == "__main__":
 
     print(f"ΔRA ≈ {ra_delta:.4f}°, ΔDEC ≈ {dec_delta:.4f}°")'''
 
-'''
-# ---- Choose/know your boresight (image center) RA0/DEC0 and optional camera roll
-RA0_deg  = 0.0      # <-- set this
-DEC0_deg = 0.0      # <-- set this
-roll_deg = 0.0
-
-R_cam2eq = build_cam_to_eq(RA0_deg, DEC0_deg, roll_deg)
-
-# Rays for the tracked stars in both frames
-rays_old_cam = pixel_to_cam_ray(good_old, cx, cy, fx, fy, flip_y=True)
-rays_new_cam = pixel_to_cam_ray(good_new, cx, cy, fx, fy, flip_y=True)
-
-# Map to equatorial frame
-rays_old_eq = (R_cam2eq @ rays_old_cam.T).T
-rays_new_eq = (R_cam2eq @ rays_new_cam.T).T
-
-# Convert each to (RA, Dec)
-radec_old = np.array([vector_to_radec(v) for v in rays_old_eq])  # shape (N,2)
-radec_new = np.array([vector_to_radec(v) for v in rays_new_eq])
-
-# Print a few examples
-for i in range(min(5, len(radec_new))):
-    print(f"Star {i}: RA1={radec_old[i,0]:.6f}°, Dec1={radec_old[i,1]:.6f}°  ->  "
-          f"RA2={radec_new[i,0]:.6f}°, Dec2={radec_new[i,1]:.6f}°")
-'''
