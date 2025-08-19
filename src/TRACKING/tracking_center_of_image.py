@@ -4,38 +4,50 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 #install opencv-contrib-python
 
-fov_deg =52
+fov_deg =52  #vertical FOV of the camera
+
 def get_intrinsics (img):
+    #INPUT:imagine of the stars to detect
+    #OUTPUT:coordinates of the center of the image in pixels,focal lenght
     h, w =  img.shape[:2]
-    fov_rad= np.radians(fov_deg)# Approx horizontal FOV
-    fy = h / (2.0 * np.tan(fov_rad / 2.0))      # fov_rad = horizontal FOV
-    fx = fy                      # scale for vertical pixels
+    fov_rad= np.radians(fov_deg)
+    fy = h / (2.0 * np.tan(fov_rad / 2.0))      
+    fx = fy                  #squared pixels
     cy = h / 2.0
     cx= w / 2.0
     return cx,cy,fx,fy
 
 def processing_image (img):
-    gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY)   #trasform it in grayscale(the function works using only brightness)
+    #INPUT:imagine of the stars to detect
+    #OUTPUT:imagine in grayscale (the function works using only brightness) and blurred
+    gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY)  
     blurred = cv.GaussianBlur(gray, (3, 3), 1)  
     retval,image_processed = cv.threshold(blurred,150, 255, cv.THRESH_BINARY)
     return image_processed
 
-def detector(img,w,h,max_corners,quality_level,min_distance): 
+#parameters used for the detection
+lk_params = dict( winSize = (31, 31),   #size of the window around each star where the algorithm looks for motion.
+                maxLevel =2,            #Lucas–Kanade can use a pyramidal approach: build image pyramids at smaller resolutions to track large motions
+                criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT,150, 0.001), #iterative solver when to stop refining: when solution change is smaller than 0.001 or after 150 iterations
+                flags=cv.OPTFLOW_LK_GET_MIN_EIGENVALS, #compute the minimum eigenvalue of the gradient matrix, which is a feature strength measure
+                minEigThreshold=1e-4)    #If the minimum eigenvalue < 1e-4, that point is rejected as too weak/unreliable.
 
+def detector(img,w,h,max_corners,quality_level,min_distance): 
+    #INPUT:imagine of the stars to detect with its width and height, parameters
+    #OUTPUT: coordinates of the stars in pixel
     p0 = cv.goodFeaturesToTrack(img, 
                             maxCorners=max_corners, 
                             qualityLevel=quality_level, 
                             minDistance=min_distance)
     return p0
 
-#criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 150, 0.01)
-#cv.cornerSubPix(gray, p0, (5,5), (-1,-1), criteria)
-
 def pixel_to_unit_vector(points, cx, cy, fx, fy):
+    #INPUT:coordinates of the stars in pixels, center of the image(origin of the camera RF),focal lenght
+    #OUTPUT: vectors from the focal point to the stars
     vectors = []
     for u,v in points:
         x = (u - cx)/fx
-        y = (v - cy)/fy # flip Y to make up = north
+        y = (v - cy)/fy 
         z = 1
         vec = np.array([x, y, z])
         #vec /= np.linalg.norm(vec)
@@ -43,16 +55,18 @@ def pixel_to_unit_vector(points, cx, cy, fx, fy):
     return np.array(vectors)
 
 def estimate_rotation(v1, v2):
+    #INPUT:2 sets of vector 
+    #OUTPUT:best matrix that aligns v1 and v2
     v1_mean = np.mean(v1, axis=0)
     v2_mean = np.mean(v2, axis=0)   #Find the average vector in each set.('axis=0'=>computes the mean along the rows, for each column separately.)
 
     v1_centered = v1 - v1_mean
-    v2_centered = v2 - v2_mean  #makes them zero-centered for covariance calculation.
+    v2_centered = v2 - v2_mean      #makes them zero-centered for covariance calculation.
 
     H = v1_centered.T @ v2_centered #covariance matrix
     
     #compute singular value decomposition
-    U, S, Vt = np.linalg.svd(H)  #H= U * S * Vt.(U and Vt are orthogonal matrices, S diagonal.)
+    U, S, Vt = np.linalg.svd(H)     #H= U * S * Vt.(U and Vt are orthogonal matrices, S diagonal.)
 
     #compute the best matrix that aligns v1 and v2
     R_matrix = Vt.T @ U.T
@@ -65,32 +79,12 @@ def estimate_rotation(v1, v2):
     rot = R.from_matrix(R_matrix)
     return rot
 
-lk_params = dict( winSize = (31, 31),
-                maxLevel =2,
-                criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT,150, 0.001),
-                flags=cv.OPTFLOW_LK_GET_MIN_EIGENVALS,
-                minEigThreshold=1e-4)     
 
-def draw_center_to_star_vectors(img, points, cx, cy, color=(255, 0, 0)):
-    """
-    Draw arrows from the image center to each detected star (feature point).
-    """
-    img_out = img.copy()
-
-    for pt in points:
-        x, y = pt.ravel()
-        cv.arrowedLine(img_out, (int(cx), int(cy)), (int(x), int(y)), color, 2, tipLength=0.2)
-        cv.circle(img_out, (int(x), int(y)), 3, (0, 255, 0), -1)  # mark the star
-
-    return img_out
-
-# ---------- Add these helpers near the top ----------
 def pixel_to_cam_ray(points, cx, cy, fx, fy, flip_y=True):
-    """
-    Convert pixels -> unit rays in camera frame using a pinhole model.
-    If your image 'up' is north, set flip_y=True so +y_cam points up.
-    points: Nx2 array of [u,v]
-    """
+    #INPUT: coordinates of the stars(in pixel),center of the image, focal lenght, flip_y to change the convention
+    #OUTPUT: Nx2 array of [u,v] (coordinates of the stars in the camera RF)
+    #Convert pixels -> unit rays in camera frame using a pinhole model.
+
     rays = []
     for u, v in points.reshape(-1, 2):
         x = (u - cx) / fx
@@ -106,21 +100,28 @@ def pixel_to_cam_ray(points, cx, cy, fx, fy, flip_y=True):
 
 
 def vector_to_radec(vec):
+    #INPUT: vector in the celestial RF
+    #OUTPUT: coordinates in the equatorial RF (Right Ascension and Declination)
     x, y, z = vec
     ra = (np.degrees(np.arctan2(y, x)) + 360.0) % 360.0
     dec = np.degrees(np.arcsin(z/np.linalg.norm(vec)))
     return ra, dec
 
 def hms_to_deg(h, m, s):
+     #INPUT: RA in h,m,s
+    #OUTPUT: RA in deg
     return (h + m/60 + s/3600) * 15
 
 def dms_to_deg(d, m, s):
+    #INPUT: DEC in deg 
+    #OUTPUT: DEC in deg (decimal notation)
     sign = 1 if d >= 0 else -1
     return sign * (abs(d) + m/60 + s/3600)
 
-import numpy as np
 
 def radec_to_vector(ra_deg, dec_deg):
+    #INPUT: RA and DEC in degree (coordinates in the equatorial RF)
+    #OUTPUT: Vector in the celestial RF
     ra = np.radians(ra_deg)
     dec = np.radians(dec_deg)
 
@@ -133,33 +134,11 @@ def radec_to_vector(ra_deg, dec_deg):
     return vec   # shape (3,)
 
 
-def build_cam_to_eq(RA0_deg, DEC0_deg, roll_deg=0.0):
-    """
-    Build rotation matrix mapping camera axes -> equatorial axes.
-    +Z_cam points to boresight (RA0,DEC0), +X_cam is east, +Y_cam is north.
-    roll_deg rotates camera around boresight.
-    """
-    z_eq = radec_to_vector(RA0_deg, DEC0_deg)            # boresight in EQ
-
-    ra = np.radians(RA0_deg); dec = np.radians(DEC0_deg)
-    east = np.array([-np.sin(ra), np.cos(ra), 0.0], dtype=np.float64)
-    east /= np.linalg.norm(east)
-
-    north = np.cross(z_eq, east)
-    north /= np.linalg.norm(north)
-
-    if abs(roll_deg) > 1e-12:
-        roll = R.from_rotvec(np.radians(roll_deg) * z_eq)
-        east = roll.apply(east)
-        north = roll.apply(north)
-
-    x_eq = east
-    y_eq = north
-    R_cam2eq = np.column_stack([x_eq, y_eq, z_eq])  # columns are cam axes in EQ
-    return R_cam2eq
-
 
 def draw_center_to_star_vectors(img, points, cx, cy, color=(0, 255, 0)):
+    #INPUT:imagine on which the vectors will be printed, coordinates of the stars(where the vectors will point),center of the image, colour used to draw
+    #OUTPUT:Draw arrows from the image center to each detected star (feature point). and label them
+
     # Make a copy so we don’t overwrite the original
     img_out = img.copy()
     
@@ -179,17 +158,21 @@ def draw_center_to_star_vectors(img, points, cx, cy, color=(0, 255, 0)):
 
 
 if __name__ == "__main__":
-    img1= cv.imread(r"src\test\test_images\Tracking_test\0RA_0DEC_FOV(52.3).png")
-    img2= cv.imread(r"src\test\test_images\Tracking_test\0RA_0.1DEC_FOV(52.3).png")
+    img1= cv.imread(r"src\test\test_images\Tracking_test\0RA_0DEC_FOV(52.3).png")   #initial orientation
+    img2= cv.imread(r"src\test\test_images\Tracking_test\0RA_0.1DEC_FOV(52.3).png") #final orientation
 
-    cx,cy,fx,fy=get_intrinsics(img1)
+    cx,cy,fx,fy=get_intrinsics(img1)   
     img_processed1=processing_image(img1)
     img_processed2=processing_image(img2)
     h, w =  img1.shape[:2]
     margin_x = int(w * 0.1)
     margin_y = int(h * 0.1)
+    #Use detector to get the coordinates of the stars(in pixels) in the first image
     p0=detector(img_processed1,w,h,max_corners = 1000,quality_level =0.001,min_distance =5)
-    
+
+    #Exclude the stars on the edges 
+    margin_x = int(w * 0.1)
+    margin_y = int(h * 0.1)
     filtered_p0 = []
     for pt in p0:
         x, y = pt.ravel()
@@ -202,16 +185,18 @@ if __name__ == "__main__":
         print("No features found in the first image!")
     else:
         print("Number of features detected:",len(p0))
+        
+    
+    #Display the results
     img_display = img1.copy()
     for pt in p0:
         x, y = pt.ravel()
         cv.circle(img_display, (int(x), int(y)), 3, (0, 255, 0), -1)
-
-
     cv.imshow("Good Features", img_display)
     cv.waitKey(0)
     cv.destroyAllWindows()
     
+    #Using the Lucas Kanade Algorithm track the stars and get the coordinates of the stars in the second image (p1)
     p1, st, err = cv.calcOpticalFlowPyrLK(img_processed1,img_processed2, p0, None, **lk_params)
     if p1 is None:
         print("Optical flow tracking failed to find points in second image.")
@@ -222,6 +207,7 @@ if __name__ == "__main__":
     good_old = p0[st == 1]  #filters only the points that were successfully tracked in the first image
     good_new = p1[st == 1]
     
+    #Apply LK algorithm to p1 =>get the coordinates of the stars in the first image (p0r) and compare them with p0=> use only the point for which p0r-p0< certain error 
     p0r, st_back, err_back = cv.calcOpticalFlowPyrLK(img_processed2,img_processed1, good_new, None, **lk_params)
     flow_error_thresh = 0.005 * max(w, h)
     p0r = p0r.reshape(-1, 2)
@@ -240,7 +226,7 @@ if __name__ == "__main__":
         cv.line(img_tracked, (int(c), int(d)), (int(a), int(b)), (0, 255, 0), 2)
         cv.circle(img_tracked, (int(a), int(b)), 3, (0, 0, 255), -1)
 
-    # --- Step 5: Display the result ---
+   #Display the results
     cv.imshow("Tracked Features (Lucas-Kanade)", img_tracked)
     cv.waitKey(0)
     cv.destroyAllWindows()
@@ -250,22 +236,6 @@ if __name__ == "__main__":
     cv.imshow("Center-to-Star Vectors (img2)", img_center_vecs)
     cv.waitKey(0)
     cv.destroyAllWindows()
-
-
-    displacement = good_new - good_old     # shape (N,2), each row is (dx, dy)
-    deg_pixel = fov_deg / h
-    real_displacement = displacement * deg_pixel
-
-    # Compute total displacement (magnitude) for each vector
-    magnitudes = np.linalg.norm(real_displacement, axis=1)
-
-    # Print displacement for every vector
-    for i, m in enumerate(magnitudes):
-        print(f"Vector {i}: displacement = {m}")
-    
-    # Compute and print mean displacement
-    mean_disp = np.mean(magnitudes)
-    print(f"\nMean displacement = {mean_disp}")
     
      #conversion in degree
 # HIP: 113136, star 0 RA (on date): 22h 55m 57.99s,Dec (on date): −15° 41′ 23.0″
@@ -280,24 +250,24 @@ if __name__ == "__main__":
     ra3_deg=hms_to_deg(0, 40, 31.28)
     dec3_deg = dms_to_deg(15, 19, 25.4)
     
-     #HIP:5364 star 3 Ra:h min s De:deg ' ''
+     #HIP:5364 star 3
     ra4_deg=hms_to_deg(1,9,51.18)
     dec4_deg = dms_to_deg(-10,3,3.3)
     
-     #HIP :112158 star 8 Ra:h min s De:deg ' ''
+     #HIP :112158 star 8 
     ra5_deg=hms_to_deg(22,44,9.59)
     dec5_deg = dms_to_deg(30,21,14.5)
     
-      #HIP:115438 star 24 Ra:h min s De:deg ' ''
+      #HIP:115438 star 24 
     ra6_deg=hms_to_deg(23,24,16.61)
     dec6_deg = dms_to_deg(-19, 5, 58.3)
     
-      #HIP:114971 star 7 Ra:h min s De:deg ' ''
+      #HIP:114971 star 7 
     ra7_deg=hms_to_deg(23,18,27.24)
     dec7_deg = dms_to_deg(3,25,8.7)
     
     
-    #call radec to vector function
+    #call radec to vector function to get the vectors in the Celestial RF (this inputs should be replaced by the results of LIS)
     v1_eq= radec_to_vector(ra1_deg,dec1_deg)
     v2_eq=radec_to_vector(ra2_deg,dec2_deg)
     v3_eq= radec_to_vector(ra3_deg,dec3_deg)
@@ -306,8 +276,8 @@ if __name__ == "__main__":
     v6_eq=radec_to_vector(ra6_deg,dec6_deg)
     v7_eq=radec_to_vector(ra7_deg,dec7_deg)
     
-  
     
+    #get the vectors in the camera RF
     v1_cam = pixel_to_cam_ray(np.array([p0[0,0]]), cx, cy, fx, fy, flip_y=False)[0]
     v2_cam = pixel_to_cam_ray(np.array([p0[1,0]]), cx, cy, fx, fy, flip_y=False)[0]
     v3_cam = pixel_to_cam_ray(np.array([p0[2,0]]), cx, cy, fx, fy, flip_y=False)[0]
@@ -328,7 +298,8 @@ if __name__ == "__main__":
     v_cam_p0 = np.vstack([v1_cam, v2_cam,v3_cam,v4_cam,v5_cam,v6_cam,v7_cam])
     print("v_cam_p0, selected:",v_cam_p0)
 
-    rot_eq_to_cam= estimate_rotation(v_eq, v_cam_p0)
+    #get the rotational matrix that best aligns the 2 RFs
+    rot_eq_to_cam= estimate_rotation(v_eq, v_cam_p0) 
     rot_cam_to_eq = rot_eq_to_cam.inv()
     print("Rotation matrix:\n", rot_eq_to_cam.as_matrix())
     
@@ -340,12 +311,16 @@ if __name__ == "__main__":
     errors = np.linalg.norm(predicted_cam - v_cam_p0, axis=1)
     print("Errors per star:", errors)
 
-    #constrcuting vector to center of the image:
-    
+    #constructing vector to center of the image in the camera RF
     v_center_cam = np.array([0, 0, 1])
+    
+    #apply the rotational matrix to get the vector in the Celestial RF
     v_center_eq = rot_cam_to_eq.apply(v_center_cam)
     v_center_eq = np.array(v_center_eq)
+    
+    #Tranform the coordinates in the Celestial RF in RA and DEC
     final_coords = np.array([vector_to_radec(v_center_eq)])
+    
     print("final_coords:",final_coords)
     print("final eq coordinates of the center: ", final_coords)
 
