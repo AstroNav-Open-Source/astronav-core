@@ -103,18 +103,20 @@ def pixel_to_cam_ray(points, cx, cy, fx, fy, flip_y=True):
         rays.append(vec)
     return np.vstack(rays)
 
-def radec_to_vector(ra_deg, dec_deg):
-    ra = np.radians(ra_deg); dec = np.radians(dec_deg)
-    x = np.cos(dec)*np.cos(ra)
-    y = np.cos(dec)*np.sin(ra)
-    z = np.sin(dec)
-    return np.array([x, y, z], dtype=np.float64)
+
 
 def vector_to_radec(vec):
     x, y, z = vec
     ra = (np.degrees(np.arctan2(y, x)) + 360.0) % 360.0
     dec = np.degrees(np.arcsin(z/np.linalg.norm(vec)))
     return ra, dec
+
+def hms_to_deg(h, m, s):
+    return (h + m/60 + s/3600) * 15
+
+def dms_to_deg(d, m, s):
+    sign = 1 if d >= 0 else -1
+    return sign * (abs(d) + m/60 + s/3600)
 
 def build_cam_to_eq(RA0_deg, DEC0_deg, roll_deg=0.0):
     """
@@ -247,10 +249,27 @@ if __name__ == "__main__":
     print(f"\nMean displacement = {mean_disp}")
     
    
-    #compute the unit vectors
-    v1 = pixel_to_unit_vector(good_old, cx, cy,fx,fy)
-    v2 = pixel_to_unit_vector(good_new, cx, cy,fx,fy)
+   #RA and DE
+   # HIP:1067, RA=1h 40min 31.28sec,De=15deg 19' 25.4''
+   #HIP 118268 RA 0h0min38sec DEC 7 deg 0 ' 7.1''
+
+    ra1_deg = hms_to_deg(1, 40, 31.28)
+    print(ra1_deg)
+    dec1_deg = dms_to_deg(15, 19, 25.4)
+    print(dec1_deg)
+    # RA2, Dec2
+    ra2_deg = hms_to_deg(0, 0, 38)
+    dec2_deg = dms_to_deg(0, 0, 7.1)
+
+  
+
+   # Ra2=0h0min38se
+    #De2=0 ' 7.1''
+    #x1,y1,z1= radec_to_vector(Ra1,De1)
+    #x2,y2,z2=radec_to_vector(Ra2,De2)
     
+    
+    print("x1,y1,z1")
     
     rot= estimate_rotation(v1, v2)
     print("Rotation matrix:\n", rot.as_matrix())
@@ -287,4 +306,4 @@ radec_new = np.array([vector_to_radec(v) for v in rays_new_eq])
 for i in range(min(5, len(radec_new))):
     print(f"Star {i}: RA1={radec_old[i,0]:.6f}°, Dec1={radec_old[i,1]:.6f}°  ->  "
           f"RA2={radec_new[i,0]:.6f}°, Dec2={radec_new[i,1]:.6f}°")
-
+'''
