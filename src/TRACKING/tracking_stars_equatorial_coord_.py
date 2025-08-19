@@ -404,7 +404,7 @@ if __name__ == "__main__":
     final_coords2 = np.array([vector_to_radec(vec) for vec in v_eq_p2])
     print('Final coord2:',final_coords2)
 
-
+    #to check( if they overlap=>it works)
     import matplotlib.pyplot as plt
 
     plt.scatter(final_coords[:,0], final_coords[:,1], label="Cam1->Eq", marker="o")
