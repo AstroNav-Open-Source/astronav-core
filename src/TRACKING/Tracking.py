@@ -87,15 +87,25 @@ def draw_center_to_star_vectors(img, points, cx, cy, color=(255, 0, 0)):
 
 
 if __name__ == "__main__":
-    img1= cv.imread(r"src\test\test_images\Tracking_test\0RA_20DEC_FOV(52.3).png")
-    img2= cv.imread("src/test/test_images/Tracking_test/0RA_20.1DEC_FOV(52.3).png")
+    img1= cv.imread(r"src\test\test_images\Tracking_test\0RA_0DEC_FOV(52.3).png")
+    img2= cv.imread(r"src\test\test_images\Tracking_test\0RA_0.1DEC_FOV(52.3).png")
 
     cx,cy,fx,fy=get_intrinsics(img1)
     img_processed1=processing_image(img1)
     img_processed2=processing_image(img2)
     h, w =  img1.shape[:2]
-
+    margin_x = int(w * 0.1)
+    margin_y = int(h * 0.1)
     p0=detector(img_processed1,w,h,max_corners = 1000,quality_level =0.001,min_distance =5)
+    
+    filtered_p0 = []
+    for pt in p0:
+        x, y = pt.ravel()
+        if margin_x < x < (w - margin_x) and margin_y < y < (h - margin_y):
+            filtered_p0.append([[x, y]])
+    filtered_p0 = np.array(filtered_p0, dtype=np.float32)
+    p0=filtered_p0
+
     if p0 is None:
         print("No features found in the first image!")
     else:
@@ -162,10 +172,6 @@ if __name__ == "__main__":
 
     cv.imwrite("output_center_vectors.jpg", img_center_vecs2)
     
-    #good_old_vect=pixel_to_unit_vector(good_old,cx,cy,fx,fy)
-    #good_new_vect=pixel_to_unit_vector(good_new,cx,cy,fx,fy)
-    #print('vect1:',good_old_vect)
-    #print('vect2:',good_new_vect)
     displacement = good_new - good_old     # shape (N,2), each row is (dx, dy)
     deg_pixel = fov_deg / h
     real_displacement = displacement * deg_pixel
@@ -187,7 +193,7 @@ if __name__ == "__main__":
     
 
 
-    '''
+       '''
     #compute the unit vectors
     v1 = pixel_to_unit_vector(good_old, cx, cy,fx,fy)
     v2 = pixel_to_unit_vector(good_new, cx, cy,fx,fy)
@@ -196,17 +202,18 @@ if __name__ == "__main__":
     rot= estimate_rotation(v1, v2)
     print("Rotation matrix:\n", rot.as_matrix())
     #print("Quaternion [x, y, z, w]:", rot.as_quat())
+ 
     print("Euler angles [°]:", rot.as_euler('zyx', degrees=True))
 
     ra_delta = rot.as_euler('zyx', degrees=True)[1]  # Y-axis:  RA (for the open cv coordinate system)
     dec_delta = rot.as_euler('zyx', degrees=True)[0]  # Z-axis: DE
 
     print(f"ΔRA ≈ {ra_delta:.4f}°, ΔDEC ≈ {dec_delta:.4f}°")
-
-
-
-
-
 '''
+
+
+
+
+
 
 
