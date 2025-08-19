@@ -118,13 +118,20 @@ def dms_to_deg(d, m, s):
     sign = 1 if d >= 0 else -1
     return sign * (abs(d) + m/60 + s/3600)
 
+import numpy as np
+
 def radec_to_vector(ra_deg, dec_deg):
     ra = np.radians(ra_deg)
     dec = np.radians(dec_deg)
+
     x = np.cos(dec) * np.cos(ra)
     y = np.cos(dec) * np.sin(ra)
     z = np.sin(dec)
-    return np.array([x, y, z], dtype=np.float64)
+
+    vec = np.array([x, y, z], dtype=np.float64)
+    vec /= np.linalg.norm(vec)   # normalize to unit vector
+    return vec   # shape (3,)
+
 
 def build_cam_to_eq(RA0_deg, DEC0_deg, roll_deg=0.0):
     """
@@ -281,10 +288,13 @@ if __name__ == "__main__":
     v2_cam=pixel_to_cam_ray(p0[1,0],cx,cy,fx,fy,flip_y=False)
     print ('p0',p0)
     print('first',p0[0,0],p0[1,0])
-    print('v1cam:',v1_cam)
+    print('vcam:',v1_cam,v2_cam)
+
+    print('v_eq',v1_eq,v2_eq)    
+    v_eq = np.vstack([v1_eq, v2_eq])
     
-    v_eq=[v1_eq, v2_eq]
-    v_cam=[v1_cam,v2_cam]
+    v_cam = np.vstack([v1_cam, v2_cam])
+
     rot= estimate_rotation(v_eq, v_cam)
     print("Rotation matrix:\n", rot.as_matrix())
     
