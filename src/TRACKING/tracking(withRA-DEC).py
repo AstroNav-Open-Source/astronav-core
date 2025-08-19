@@ -348,16 +348,17 @@ if __name__ == "__main__":
     v_cam_p1 = np.vstack(v_cam_p1)
     print("v_cam_p1, all:",v_cam_p1)
 
-    # #apply rotational matrix to v_cam_p1 to get equatorial coordinates of stars 
-    # v_eq_p1 = rot_cam_to_eq.apply(v_cam_p1)
-    # print(v_eq_p1.shape)  # (N, 3)
-    # print(v_eq_p1)
+    #apply rotational matrix to v_cam_p1 to get equatorial coordinates of stars 
+    v_eq_p1 = rot_cam_to_eq.apply(v_cam_p1)
+    v_eq_p1 = np.array(v_eq_p1)
+    print(v_eq_p1.shape)  # (N, 3)
+    print("v_eq_p1:", v_eq_p1)
 
 
     #convert from 3d vector to RA/DEC for stars from final image 
 
-    final_coords = [vector_to_radec(vec) for vec in v_eq_p1]
-    print(final_coords)
+    final_coords = np.array([vector_to_radec(vec) for vec in v_eq_p1])
+    print("final_coords:",final_coords)
 
 
 
