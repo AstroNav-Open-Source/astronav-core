@@ -152,6 +152,23 @@ def build_cam_to_eq(RA0_deg, DEC0_deg, roll_deg=0.0):
     return R_cam2eq
 
 
+def draw_center_to_star_vectors(img, points, cx, cy, color=(0, 255, 0)):
+    # Make a copy so we don’t overwrite the original
+    img_out = img.copy()
+    
+    for i, (x, y) in enumerate(points):
+        # Draw the line from image center to point
+        cv.line(img_out, (int(cx), int(cy)), (int(x), int(y)), color, 1)
+
+        # Draw a small circle at the star location
+        cv.circle(img_out, (int(x), int(y)), 3, color, -1)
+
+        # Put the index number near the star
+        cv.putText(img_out, str(i), (int(x) + 5, int(y) - 5), 
+            cv.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv.LINE_AA)
+    return img_out
+
+
 
 
 if __name__ == "__main__":
@@ -222,24 +239,11 @@ if __name__ == "__main__":
     cv.destroyAllWindows()
 
     cv.imwrite("output_tracking.jpg", img_tracked)
-    
-
-# --- Draw on second image using tracked points ---
     img_center_vecs = draw_center_to_star_vectors(img2, good_new, cx, cy)
-
-    cv.imshow("Center-to-Star Vectors", img_center_vecs)
+    cv.imshow("Center-to-Star Vectors (img2)", img_center_vecs)
     cv.waitKey(0)
     cv.destroyAllWindows()
 
-    cv.imwrite("output_center_vectors.jpg", img_center_vecs)
-
-    img_center_vecs2=draw_center_to_star_vectors(img1, good_old, cx, cy,color=(0, 0, 255))
-    cv.imshow("Center-to-Star Vectors", img_center_vecs2)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
-    cv.imwrite("output_center_vectors.jpg", img_center_vecs2)
-    
 
     displacement = good_new - good_old     # shape (N,2), each row is (dx, dy)
     deg_pixel = fov_deg / h
@@ -257,27 +261,36 @@ if __name__ == "__main__":
     print(f"\nMean displacement = {mean_disp}")
     
    
-   #RA and DE
-   # HIP:1067, RA=1h 40min 31.28sec,De=15deg 19' 25.4''
-   #HIP 118268 RA 0h0min38sec DEC 7 deg 0 ' 7.1''
+   #RA and DE for the star '0'
+# HIP: 113136,RA (on date): 22h 55m 57.99s,Dec (on date): −15° 41′ 23.0″
 
-    ra1_deg = hms_to_deg(1, 40, 31.28)
-    dec1_deg = dms_to_deg(15, 19, 25.4)
+    #conversion in degree
+    ra1_deg = hms_to_deg(22, 55, 57.99)
+    dec1_deg = dms_to_deg(-15, 41, 23.0)
+    
+    #HIP: 3092,RA (on date): 0h 40m 39.94s,Dec (on date): +31° 00′ 01.6″
    
-    ra2_deg = hms_to_deg(0, 0, 38)
-    dec2_deg = dms_to_deg(0, 0, 7.1)
-
+    ra2_deg = hms_to_deg(0, 40, 39.94)
+    dec2_deg = dms_to_deg(31, 0, 01.6)
+    #call radec to vector function
+    v1_eq= radec_to_vector(ra1_deg,dec1_deg)
+    v2_eq=radec_to_vector(ra2_deg,dec2_deg)
   
-
-   # Ra2=0h0min38se
-    #De2=0 ' 7.1''
-    #x1,y1,z1= radec_to_vector(Ra1,De1)
-    #x2,y2,z2=radec_to_vector(Ra2,De2)
+    
+    v1_cam=pixel_to_cam_ray(p0[0,0],cx,cy,fx,fy,flip_y=False)
+    v2_cam=pixel_to_cam_ray(p0[1,0],cx,cy,fx,fy,flip_y=False)
+    print ('p0',p0)
+    print('first',p0[0,0],p0[1,0])
+    print('v1cam:',v1_cam)
+    
+    v_eq=[v1_eq, v2_eq]
+    v_cam=[v1_cam,v2_cam]
+    rot= estimate_rotation(v_eq, v_cam)
+    print("Rotation matrix:\n", rot.as_matrix())
     
     
-    print("x1,y1,z1")
-    
-    rot= estimate_rotation(v1, v2)
+    '''
+    rot= estimate_rotation(v1_eq, v2)
     print("Rotation matrix:\n", rot.as_matrix())
     #print("Quaternion [x, y, z, w]:", rot.as_quat())
 
@@ -286,7 +299,7 @@ if __name__ == "__main__":
     ra_delta = rot.as_euler('zyx', degrees=True)[1]  # Y-axis:  RA (for the open cv coordinate system)
     dec_delta = rot.as_euler('zyx', degrees=True)[0]  # Z-axis: DE
 
-    print(f"ΔRA ≈ {ra_delta:.4f}°, ΔDEC ≈ {dec_delta:.4f}°")
+    print(f"ΔRA ≈ {ra_delta:.4f}°, ΔDEC ≈ {dec_delta:.4f}°")'''
 
 '''
 # ---- Choose/know your boresight (image center) RA0/DEC0 and optional camera roll
