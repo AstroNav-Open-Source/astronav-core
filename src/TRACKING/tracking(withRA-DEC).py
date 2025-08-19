@@ -267,42 +267,76 @@ if __name__ == "__main__":
     mean_disp = np.mean(magnitudes)
     print(f"\nMean displacement = {mean_disp}")
     
-   
-   #RA and DE for the star '0'
-# HIP: 113136,RA (on date): 22h 55m 57.99s,Dec (on date): −15° 41′ 23.0″
-
-    #conversion in degree
+     #conversion in degree
+# HIP: 113136, star 0 RA (on date): 22h 55m 57.99s,Dec (on date): −15° 41′ 23.0″
     ra1_deg = hms_to_deg(22, 55, 57.99)
     dec1_deg = dms_to_deg(-15, 41, 23.0)
     
-    #HIP: 3092,RA (on date): 0h 40m 39.94s,Dec (on date): +31° 00′ 01.6″
-   
+    #HIP: 3092,RA star 1 (on date): 0h 40m 39.94s,Dec (on date): +31° 00′ 01.6″
     ra2_deg = hms_to_deg(0, 40, 39.94)
     dec2_deg = dms_to_deg(31, 0, 01.6)
     
-    #HIP:1067 Ra:0h 40min 31.28s De:15deg 19' 25.4''
+    #HIP:1067 star 2 Ra:0h 40min 31.28s De:15deg 19' 25.4''
     ra3_deg=hms_to_deg(0, 40, 31.28)
     dec3_deg = dms_to_deg(15, 19, 25.4)
+    
+     #HIP:5364 star 3 Ra:h min s De:deg ' ''
+    ra4_deg=hms_to_deg(1,9,51.18)
+    dec4_deg = dms_to_deg(-10,3,3.3)
+    
+     #HIP :112158 star 8 Ra:h min s De:deg ' ''
+    ra5_deg=hms_to_deg(22,44,9.59)
+    dec5_deg = dms_to_deg(30,21,14.5)
+    
+      #HIP:115438 star 24 Ra:h min s De:deg ' ''
+    ra6_deg=hms_to_deg(23,24,16.61)
+    dec6_deg = dms_to_deg(-19, 5, 58.3)
+    
+      #HIP:114971 star 7 Ra:h min s De:deg ' ''
+    ra7_deg=hms_to_deg(23,18,27.24)
+    dec7_deg = dms_to_deg(3,25,8.7)
+    
+    
     #call radec to vector function
     v1_eq= radec_to_vector(ra1_deg,dec1_deg)
     v2_eq=radec_to_vector(ra2_deg,dec2_deg)
     v3_eq= radec_to_vector(ra3_deg,dec3_deg)
+    v4_eq=radec_to_vector(ra4_deg,dec4_deg)
+    v5_eq=radec_to_vector(ra5_deg,dec5_deg)
+    v6_eq=radec_to_vector(ra6_deg,dec6_deg)
+    v7_eq=radec_to_vector(ra7_deg,dec7_deg)
+    
   
     
-    v1_cam=pixel_to_cam_ray(p0[0,0],cx,cy,fx,fy,flip_y=False)
-    v2_cam=pixel_to_cam_ray(p0[1,0],cx,cy,fx,fy,flip_y=False)
-    v3_cam=pixel_to_cam_ray(p0[2,0],cx,cy,fx,fy,flip_y=False)
+    v1_cam = pixel_to_cam_ray(np.array([p0[0,0]]), cx, cy, fx, fy, flip_y=False)[0]
+    v2_cam = pixel_to_cam_ray(np.array([p0[1,0]]), cx, cy, fx, fy, flip_y=False)[0]
+    v3_cam = pixel_to_cam_ray(np.array([p0[2,0]]), cx, cy, fx, fy, flip_y=False)[0]
+    v4_cam= pixel_to_cam_ray(np.array([p0[3,0]]), cx, cy, fx, fy, flip_y=False)[0]
+    v5_cam= pixel_to_cam_ray(np.array([p0[8,0]]), cx, cy, fx, fy, flip_y=False)[0]
+    v6_cam= pixel_to_cam_ray(np.array([p0[24,0]]), cx, cy, fx, fy, flip_y=False)[0]
+    v7_cam= pixel_to_cam_ray(np.array([p0[7,0]]), cx, cy, fx, fy, flip_y=False)[0]
+    
+    
+
     print ('p0',p0)
     print('first',p0[0,0],p0[1,0])
     print('vcam:',v1_cam,v2_cam)
 
-    print('v_eq',v1_eq,v2_eq,v3_eq)    
-    v_eq = np.vstack([v1_eq, v2_eq,v3_eq])
+    print('v_eq',v1_eq,v2_eq,v3_eq,v4_eq,v5_eq,v6_eq,v7_eq)    
+    v_eq = np.vstack([v1_eq, v2_eq,v3_eq,v4_eq,v5_eq,v6_eq,v7_eq])
     
-    v_cam = np.vstack([v1_cam, v2_cam,v3_cam])
+    v_cam = np.vstack([v1_cam, v2_cam,v3_cam,v4_cam,v5_cam,v6_cam,v7_cam])
 
     rot= estimate_rotation(v_eq, v_cam)
     print("Rotation matrix:\n", rot.as_matrix())
+    
+    predicted_cam = rot.apply(v_eq)
+    print("Predicted camera vectors:\n", predicted_cam)
+    print("Actual camera vectors:\n", v_cam)
+
+    # measure error
+    errors = np.linalg.norm(predicted_cam - v_cam, axis=1)
+    print("Errors per star:", errors)
 
 
     
