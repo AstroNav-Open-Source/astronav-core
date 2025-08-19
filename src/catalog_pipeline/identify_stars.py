@@ -52,6 +52,8 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
     import itertools
     detected_vectors = np.asarray(detected_vectors)
     n = detected_vectors.shape[0]
+    print(f"DEBUG: Processing {n} detected stars")
+    
     # Compute all unique pairs and their angles
     pairs = list(itertools.combinations(range(n), 2))
     detected_angles = []  # (i, j, angle)
@@ -62,18 +64,24 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
         angle = np.degrees(np.arccos(dot))
         detected_angles.append((i, j, angle))
     
+    print(f"DEBUG: Computed {len(detected_angles)} pairwise angles")
+    
     # For each detected pair, query catalog pairs
     # Build a set of all possible catalog star IDs from the matches
     catalog_star_ids = set() # this builds a hash set
     pair_matches = dict()  # (i, j) -> list of (star1_id, star2_id)
+    total_catalog_matches = 0
     for i, j, angle in detected_angles:
         matches = query_star_pairs(angle, angle_tolerance, db_path=db_path, limit=limit)
         pair_matches[(i, j)] = matches # data format: (i, j) = [(61379, 68002, 14.242087679330531), (72378, 76945, 14.242087343190798), (31457, 33977, 14.242081929215967)
+        total_catalog_matches += len(matches)
         for star1_id, star2_id, _ in matches:
             catalog_star_ids.add(star1_id)
             catalog_star_ids.add(star2_id)
     catalog_star_ids = sorted(list(catalog_star_ids))
     m = len(catalog_star_ids)
+    print(f"DEBUG: Found {total_catalog_matches} total catalog pair matches, {m} unique catalog stars")
+    
     # Create a mapping from catalog star ID to index and vice versa
     cat_id_to_idx = {cat_id: idx for idx, cat_id in enumerate(catalog_star_ids)}
     idx_to_cat_id = {idx: cat_id for idx, cat_id in enumerate(catalog_star_ids)} # Structure: {0: 124, 1: 145, 2: 154, 3: 207, 4: 330.. etc} -> {index: HIP}
@@ -89,6 +97,9 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
             det_to_cat_candidates[i].add(star2_id)
             det_to_cat_candidates[j].add(star1_id)
     
+    candidate_counts = [len(det_to_cat_candidates[i]) for i in range(n)]
+    print(f"DEBUG: Candidate counts per detected star: {candidate_counts}")
+    
     # Build assignment matrix: rows=detected stars, cols=catalog stars
     assignment_matrix = np.zeros((n, m), dtype=int)
 
@@ -97,6 +108,7 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
     if all(candidate_lists):
         # Order detected stars by fewest candidates first
         det_order = sorted(range(n), key=lambda i: len(candidate_lists[i]))
+        print(f"DEBUG: Processing detected stars in order: {det_order} (by candidate count)")
         max_assignments = EARLY_SUBGRAPH_STAR_EXIT  # Early exit limit
         assignments_checked = [0]  # Counter
 
@@ -153,6 +165,7 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
                 del assignment[det_idx]
 
         backtrack(dict(), set(), 0)
+        print(f"DEBUG: Backtracking completed, checked {assignments_checked[0]} assignments")
     else:
         # Fallback: no valid assignments, leave assignment_matrix as zeros
         pass
@@ -160,6 +173,7 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
     # Hungarian algorithm finds minimum cost, so use negative of matches as cost
     cost_matrix = -assignment_matrix
     row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    print(f"DEBUG: Hungarian algorithm assigned {len(row_ind)} stars")
 
     # Prepare result: for each detected star, the assigned catalog star and the number of pairwise matches
     result = {}
@@ -167,6 +181,9 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
         cat_id = idx_to_cat_id[cat_col]
         votes = assignment_matrix[det_idx, cat_col]
         result[det_idx] = [(cat_id, votes)]
+    
+    vote_counts = [result[i][0][1] if i in result and result[i] else 0 for i in range(n)]
+    print(f"DEBUG: Final vote counts: {vote_counts}")
     return result
 
 def get_identified_star_info(matches, db_path=DB_PATH):
