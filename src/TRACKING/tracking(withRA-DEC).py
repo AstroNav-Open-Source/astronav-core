@@ -279,29 +279,36 @@ if __name__ == "__main__":
    
     ra2_deg = hms_to_deg(0, 40, 39.94)
     dec2_deg = dms_to_deg(31, 0, 01.6)
+    
+    #HIP:1067 Ra:0h 40min 31.28s De:15deg 19' 25.4''
+    ra3_deg=hms_to_deg(0, 40, 31.28)
+    dec3_deg = dms_to_deg(15, 19, 25.4)
     #call radec to vector function
     v1_eq= radec_to_vector(ra1_deg,dec1_deg)
     v2_eq=radec_to_vector(ra2_deg,dec2_deg)
+    v3_eq= radec_to_vector(ra3_deg,dec3_deg)
   
     
     v1_cam=pixel_to_cam_ray(p0[0,0],cx,cy,fx,fy,flip_y=False)
     v2_cam=pixel_to_cam_ray(p0[1,0],cx,cy,fx,fy,flip_y=False)
+    v3_cam=pixel_to_cam_ray(p0[2,0],cx,cy,fx,fy,flip_y=False)
     print ('p0',p0)
     print('first',p0[0,0],p0[1,0])
     print('vcam:',v1_cam,v2_cam)
 
-    print('v_eq',v1_eq,v2_eq)    
-    v_eq = np.vstack([v1_eq, v2_eq])
+    print('v_eq',v1_eq,v2_eq,v3_eq)    
+    v_eq = np.vstack([v1_eq, v2_eq,v3_eq])
     
-    v_cam = np.vstack([v1_cam, v2_cam])
+    v_cam = np.vstack([v1_cam, v2_cam,v3_cam])
 
     rot= estimate_rotation(v_eq, v_cam)
     print("Rotation matrix:\n", rot.as_matrix())
+
+
     
     
     '''
-    rot= estimate_rotation(v1_eq, v2)
-    print("Rotation matrix:\n", rot.as_matrix())
+  
     #print("Quaternion [x, y, z, w]:", rot.as_quat())
 
     print("Euler angles [°]:", rot.as_euler('zyx', degrees=True))
