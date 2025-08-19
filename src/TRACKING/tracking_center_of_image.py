@@ -160,10 +160,12 @@ def draw_center_to_star_vectors(img, points, cx, cy, color=(0, 255, 0)):
 if __name__ == "__main__":
     img1= cv.imread(r"src\test\test_images\Tracking_test\0RA_0DEC_FOV(52.3).png")   #initial orientation
     img2= cv.imread(r"src\test\test_images\Tracking_test\0RA_0.1DEC_FOV(52.3).png") #final orientation
-
+    img3=cv.imread("")
+    
     cx,cy,fx,fy=get_intrinsics(img1)   
     img_processed1=processing_image(img1)
     img_processed2=processing_image(img2)
+    img_processed3=
     h, w =  img1.shape[:2]
     margin_x = int(w * 0.1)
     margin_y = int(h * 0.1)
@@ -323,4 +325,6 @@ if __name__ == "__main__":
     
     print("final_coords:",final_coords)
     print("final eq coordinates of the center: ", final_coords)
+    
+  
 

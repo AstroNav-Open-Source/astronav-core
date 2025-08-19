@@ -181,10 +181,12 @@ def draw_center_to_star_vectors(img, points, cx, cy, color=(0, 255, 0)):
 if __name__ == "__main__":
     img1= cv.imread(r"src\test\test_images\Tracking_test\0RA_0DEC_FOV(52.3).png")
     img2= cv.imread(r"src\test\test_images\Tracking_test\0RA_0.1DEC_FOV(52.3).png")
+    img3=cv.imread(r'src\test\test_images\Tracking_test\0RA_0.3DEC_FOV(52.3).png')
 
     cx,cy,fx,fy=get_intrinsics(img1)
     img_processed1=processing_image(img1)
     img_processed2=processing_image(img2)
+    img_processed3=processing_image(img3)
     h, w =  img1.shape[:2]
     margin_x = int(w * 0.1)
     margin_y = int(h * 0.1)
@@ -246,26 +248,51 @@ if __name__ == "__main__":
     cv.destroyAllWindows()
 
     cv.imwrite("output_tracking.jpg", img_tracked)
-    img_center_vecs = draw_center_to_star_vectors(img2, good_new, cx, cy)
-    cv.imshow("Center-to-Star Vectors (img2)", img_center_vecs)
+    img_center_vecs2 = draw_center_to_star_vectors(img2, good_new, cx, cy)
+    cv.imshow("Center-to-Star Vectors (img2)", img_center_vecs2)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+    
+    p2, st2, err2 = cv.calcOpticalFlowPyrLK(img_processed2,img_processed3, p1, None, **lk_params)
+    if p2 is None:
+        print("Optical flow tracking failed to find points in second image.")
+    else:
+        tracked_points = np.sum(st)
+        print(f"Number of points successfully tracked: {tracked_points} / {len(p0)}")
+    
+    p2 = p2[st == 1]
+    
+    #Apply LK algorithm to p2 =>get the coordinates of the stars in the first image (p1r) and compare them with p1=> use only the point for which p0r-p0< certain error 
+    p1r, st_back, err_back = cv.calcOpticalFlowPyrLK(img_processed3,img_processed2, p2, None, **lk_params)
+    flow_error_thresh = 0.005 * max(w, h)
+    p1r = p1r.reshape(-1, 2)
+    st_back = st_back.reshape(-1)
+
+    diff = np.linalg.norm(p1 - p1r, axis=1)
+    good_indices = diff < flow_error_thresh
+    good_old1 = p1.reshape(-1, 2)[good_indices]
+    good_new = p1.reshape(-1, 2)[st.flatten() == 1]
+
+    
+    img_tracked = img3.copy() #copy of the second image to draw the motion vectors
+    for old, new in zip(p1,p2):
+        a, b = new.ravel()  #to access x and y as individual variables
+        c, d = old.ravel()
+        cv.line(img_tracked, (int(c), int(d)), (int(a), int(b)), (0, 255, 0), 2)
+        cv.circle(img_tracked, (int(a), int(b)), 3, (0, 0, 255), -1)
+
+   #Display the results
+    cv.imshow("Tracked Features (Lucas-Kanade)", img_tracked)
     cv.waitKey(0)
     cv.destroyAllWindows()
 
-
-    displacement = good_new - good_old     # shape (N,2), each row is (dx, dy)
-    deg_pixel = fov_deg / h
-    real_displacement = displacement * deg_pixel
-
-    # Compute total displacement (magnitude) for each vector
-    magnitudes = np.linalg.norm(real_displacement, axis=1)
-
-    # Print displacement for every vector
-    for i, m in enumerate(magnitudes):
-        print(f"Vector {i}: displacement = {m}")
+    cv.imwrite("output_tracking.jpg", img_tracked)
     
-    # Compute and print mean displacement
-    mean_disp = np.mean(magnitudes)
-    print(f"\nMean displacement = {mean_disp}")
+    img_center_vecs3 = draw_center_to_star_vectors(img3, p2, cx, cy,color=150)
+    cv.imshow("Center-to-Star Vectors (img3)", img_center_vecs3)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
     
      #conversion in degree
 # HIP: 113136, star 0 RA (on date): 22h 55m 57.99s,Dec (on date): −15° 41′ 23.0″
@@ -359,9 +386,33 @@ if __name__ == "__main__":
 
     final_coords = np.array([vector_to_radec(vec) for vec in v_eq_p1])
     print("final_coords:",final_coords)
+    #Get the coordinates of the stars in the second image in the camera RF
+    v_cam_p2 = pixel_to_cam_ray(p2.reshape(-1, 2), cx, cy, fx, fy, flip_y=False)
+    print("v_cam_p2 shape:", v_cam_p2.shape)
+    
+    #Get the rotational magtrix between the camera RF in the third photo and the camera RF in the second one
+    rot_cam1_to_cam2=estimate_rotation(v_cam_p1,v_cam_p2)
+    print("Rotation matrix between cam1 and cam2:\n", rot_cam1_to_cam2.as_matrix())
+    
+    #Get the rotational magtrix between the camera RF in the third photo  and the Celestial RF
+    rot_cam2_to_eq=rot_cam1_to_cam2 * rot_cam_to_eq
+    print("Rotation matrix between cam 2 and celestial RF:\n", rot_cam2_to_eq.as_matrix())
+    
+    v_eq_p2=rot_cam2_to_eq.apply(v_cam_p2)
+    print('v_eq_p2:',v_eq_p2)
+    
+    final_coords2 = np.array([vector_to_radec(vec) for vec in v_eq_p2])
+    print('Final coord2:',final_coords2)
 
 
+    import matplotlib.pyplot as plt
 
+    plt.scatter(final_coords[:,0], final_coords[:,1], label="Cam1->Eq", marker="o")
+    plt.scatter(final_coords2[:,0], final_coords2[:,1], label="Cam2->Eq", marker="x")
+    plt.xlabel("RA (deg)")
+    plt.ylabel("Dec (deg)")
+    plt.legend()
+    plt.show()
 
 
 
