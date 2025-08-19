@@ -118,6 +118,14 @@ def dms_to_deg(d, m, s):
     sign = 1 if d >= 0 else -1
     return sign * (abs(d) + m/60 + s/3600)
 
+def radec_to_vector(ra_deg, dec_deg):
+    ra = np.radians(ra_deg)
+    dec = np.radians(dec_deg)
+    x = np.cos(dec) * np.cos(ra)
+    y = np.cos(dec) * np.sin(ra)
+    z = np.sin(dec)
+    return np.array([x, y, z], dtype=np.float64)
+
 def build_cam_to_eq(RA0_deg, DEC0_deg, roll_deg=0.0):
     """
     Build rotation matrix mapping camera axes -> equatorial axes.
@@ -254,10 +262,8 @@ if __name__ == "__main__":
    #HIP 118268 RA 0h0min38sec DEC 7 deg 0 ' 7.1''
 
     ra1_deg = hms_to_deg(1, 40, 31.28)
-    print(ra1_deg)
     dec1_deg = dms_to_deg(15, 19, 25.4)
-    print(dec1_deg)
-    # RA2, Dec2
+   
     ra2_deg = hms_to_deg(0, 0, 38)
     dec2_deg = dms_to_deg(0, 0, 7.1)
 
