@@ -139,7 +139,7 @@ if __name__ == "__main__":
     good_indices = diff < flow_error_thresh
     good_old = good_old[good_indices]
     good_new = good_new[good_indices]
-
+    
     
     img_tracked = img2.copy() #copy of the second image to draw the motion vectors
     for old, new in zip(good_old,good_new):

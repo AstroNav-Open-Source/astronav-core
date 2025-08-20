@@ -387,7 +387,7 @@ if __name__ == "__main__":
     if p0 is None:
         print("No features found in the first image!")
     else:
-        print("Number of features detected:",len(p0),end="")
+        print("Number of features detected:",len(p0))
 
 
     #using p0, get coordinates of stars from img1 in camera system:
@@ -438,13 +438,20 @@ if __name__ == "__main__":
     #get also inverse of matrix for camera to equatorial 
     rot_eq_to_cam= estimate_rotation(v_eq, v_cam_p0)
     rot_cam_to_eq = rot_eq_to_cam.inv()
-    print("Rotation matrix:\n", rot_eq_to_cam.as_matrix(),end="")
+    #print("Rotation matrix:\n", rot_eq_to_cam.as_matrix())
     
 #### Step 2: iterate over the rest of the images
     rot_prev_to_eq = rot_cam_to_eq   # calibration from first image
     p_prev = p0                      # start with coordinates from first image
 
     fb_thresh = 0.005 * max(w, h)    # forward-backward tolerance in pixels
+
+    #create variable for tracking angle of movement through adding the increments between every frame
+    total_angle_deg = 0.0
+
+    #for getting total angle from initial and final image
+    rot_first_to_eq = rot_prev_to_eq # keep track of the very first orientation
+    rot_last_to_eq  = rot_prev_to_eq # will be updated each step
 
     for i in range(1, len(images)):
         img_prev = processed_images[i-1]
@@ -455,7 +462,7 @@ if __name__ == "__main__":
         good_prev, good_curr = track_with_fb_check(img_prev, img_curr, p_prev, lk_params, fb_thresh)
 
         if len(good_curr) == 0:
-            print(f"Frame {i}: no reliable points tracked",end="")
+            print(f"Frame {i}: no reliable points tracked")
             continue
 
         # Convert pixel positions to camera-frame rays
@@ -465,31 +472,43 @@ if __name__ == "__main__":
         # get relative rotation from frame i-1 to i
         rot_prev_to_curr = estimate_rotation(v_prev, v_curr)
 
-        ###convert to angle:
-        # Suppose rot_prev_to_curr is your 3x3 rotation matrix
-        rotation_obj = R.from_matrix(rot_prev_to_curr)
+        # relative rotation in equatorial system (change of basis)
+        rot_prev_to_curr_eq = rot_prev_to_eq * rot_prev_to_curr * rot_prev_to_eq.inv()
 
-        # Convert to rotation vector (axis * angle)
-        rotvec = rotation_obj.as_rotvec()  # shape (3,)
-        angle_rad = np.linalg.norm(rotvec) # magnitude = rotation angle in radians
-        angle_deg = np.degrees(angle_rad)  # convert to degrees
+        # extract angle of rotation between frame i-1 and i
+        rotvec = rot_prev_to_curr_eq.as_rotvec()
+        angle_rad = np.linalg.norm(rotvec)
+        angle_deg = np.degrees(angle_rad)
 
-        print(f"Rotation angle between previous and current: {angle_deg:.3f} degrees",end="")
+        print(f"Frame {i}: rotation angle in equatorial system = {angle_deg:.6f} degrees")
+
+        # 1) accumulate total angle of movement
+        total_angle_deg += angle_deg
 
         # Update orientation of current frame in equatorial system
         rot_curr_to_eq = rot_prev_to_curr * rot_prev_to_eq
+
+        # 2) update "last orientation"
+        rot_last_to_eq = rot_curr_to_eq
 
         # Convert tracked stars into RA/Dec
         v_eq_curr = rot_curr_to_eq.apply(v_curr)
         coords_curr = np.array([vector_to_radec(v) for v in v_eq_curr])
 
-        # Debug/printout
-        # print(f"\nFrame {i}: orientation matrix\n", rot_curr_to_eq.as_matrix())
-        # print(f"Frame {i}: RA/Dec of {len(coords_curr)} stars\n", coords_curr)
-
         # Prepare for next iteration
         p_prev = good_curr.reshape(-1,1,2).astype(np.float32)
         rot_prev_to_eq = rot_curr_to_eq
+
+
+#total degree of movement from increments:
+print(f"Total rotation across all frames = {total_angle_deg:.6f} degrees")
+
+#total degree of movement between initial and final:
+rot_first_to_last_eq = rot_last_to_eq * rot_first_to_eq.inv()
+net_rotvec = rot_first_to_last_eq.as_rotvec()
+net_angle_deg = np.degrees(np.linalg.norm(net_rotvec))
+
+print(f"Net rotation (first → last frame) = {net_angle_deg:.6f} degrees")
 
 ###what Step 2 should ouput:
 # - the angle difference between every previous and current image
