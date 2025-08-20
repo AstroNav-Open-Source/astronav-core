@@ -346,61 +346,74 @@ if __name__ == "__main__":
     
 
     print ('p0',p0)
-    print('first',p0[0,0],p0[1,0])
+    print('coordinates of first 2 stars:',p0[0,0],p0[1,0])
     print('vcam:',v1_cam,v2_cam)
 
+    #print equatorial coordinates of stars from img1
     print('v_eq',v1_eq,v2_eq,v3_eq,v4_eq,v5_eq,v6_eq,v7_eq)    
     v_eq = np.vstack([v1_eq, v2_eq,v3_eq,v4_eq,v5_eq,v6_eq,v7_eq])
     
+    #print camera coordinates of stars from img1:
     v_cam_p0 = np.vstack([v1_cam, v2_cam,v3_cam,v4_cam,v5_cam,v6_cam,v7_cam])
     print("v_cam_p0, selected:",v_cam_p0)
 
+    #create rotational matrix from equatorial system to camera system using image 1
+    #get also inverse of matrix for camera to equatorial 
     rot_eq_to_cam= estimate_rotation(v_eq, v_cam_p0)
     rot_cam_to_eq = rot_eq_to_cam.inv()
     print("Rotation matrix:\n", rot_eq_to_cam.as_matrix())
     
+    #apply rotational matrix to equatorial coordinates of stars in image 1 to test accuracy
+    #if the predicted coordinates are the same as the real coordinates, it works 
     predicted_cam = rot_eq_to_cam.apply(v_eq)
     print("Predicted camera vectors:\n", predicted_cam)
     print("Actual camera vectors:\n", v_cam_p0)
 
-    # measure error
+    # measure error of rotational matrix from camera to equatorial, created using img1
     errors = np.linalg.norm(predicted_cam - v_cam_p0, axis=1)
     print("Errors per star:", errors)
 
+    #creating the vectors in camera system for img2
     v_cam_p1 = []
     for i in range(len(p1)):
         vi_cam = pixel_to_cam_ray(np.array([p1[i,0]]), cx, cy, fx, fy, flip_y=False)[0]
         v_cam_p1.append(vi_cam)
 
+    #print vector coordinates of stars from img2:
     v_cam_p1 = np.vstack(v_cam_p1)
     print("v_cam_p1, all:",v_cam_p1)
 
-    #apply rotational matrix to v_cam_p1 to get equatorial coordinates of stars 
+    #apply rotational matrix from camera to equatorial to v_cam_p1 to get equatorial coordinates of stars from img2
     v_eq_p1 = rot_cam_to_eq.apply(v_cam_p1)
     v_eq_p1 = np.array(v_eq_p1)
     print(v_eq_p1.shape)  # (N, 3)
     print("v_eq_p1:", v_eq_p1)
 
-
-    #convert from 3d vector to RA/DEC for stars from final image 
-
+    #convert 3d vectors of stars in img2 to RA/DEC 
+    #final_coords = eq coordinates of stars in img2
     final_coords = np.array([vector_to_radec(vec) for vec in v_eq_p1])
     print("final_coords:",final_coords)
-    #Get the coordinates of the stars in the second image in the camera RF
+
+### adding the third image ###
+
+    #Get the camera coordinates of the stars in img3
     v_cam_p2 = pixel_to_cam_ray(p2.reshape(-1, 2), cx, cy, fx, fy, flip_y=False)
     print("v_cam_p2 shape:", v_cam_p2.shape)
     
-    #Get the rotational magtrix between the camera RF in the third photo and the camera RF in the second one
+    #get the rotational matrix between camera coord of image 2 and camera coord of image 3
     rot_cam1_to_cam2=estimate_rotation(v_cam_p1,v_cam_p2)
     print("Rotation matrix between cam1 and cam2:\n", rot_cam1_to_cam2.as_matrix())
     
-    #Get the rotational magtrix between the camera RF in the third photo  and the Celestial RF
+    #Get the rotational matrix between camera coordinates of stars in img3 and the Celestial RF
+    #do this by multiplying (rotation between img2 and img3) * (rotation between camera RF and equatorial RF)
     rot_cam2_to_eq=rot_cam1_to_cam2 * rot_cam_to_eq
     print("Rotation matrix between cam 2 and celestial RF:\n", rot_cam2_to_eq.as_matrix())
     
+    #print equatorial coordinates of stars from img3
     v_eq_p2=rot_cam2_to_eq.apply(v_cam_p2)
     print('v_eq_p2:',v_eq_p2)
-    
+
+    #final_coords_2 = eq coordinates of stars in img3
     final_coords2 = np.array([vector_to_radec(vec) for vec in v_eq_p2])
     print('Final coord2:',final_coords2)
 
