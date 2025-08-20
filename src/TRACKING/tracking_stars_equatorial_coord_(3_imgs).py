@@ -444,4 +444,3 @@ if __name__ == "__main__":
     dec_delta = rot.as_euler('zyx', degrees=True)[0]  # Z-axis: DE
 
     print(f"ΔRA ≈ {ra_delta:.4f}°, ΔDEC ≈ {dec_delta:.4f}°")'''
-
