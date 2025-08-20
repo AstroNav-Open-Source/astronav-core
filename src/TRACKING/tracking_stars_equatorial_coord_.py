@@ -204,13 +204,15 @@ if __name__ == "__main__":
         print("No features found in the first image!")
     else:
         print("Number of features detected:",len(p0))
+
+    #function for displaying img1 with stars
     img_display = img1.copy()
     for pt in p0:
         x, y = pt.ravel()
         cv.circle(img_display, (int(x), int(y)), 3, (0, 255, 0), -1)
 
-
-    cv.imshow("Good Features", img_display)
+    
+    cv.imshow("Stars in img1", img_display)
     cv.waitKey(0)
     cv.destroyAllWindows()
     
@@ -235,6 +237,7 @@ if __name__ == "__main__":
     good_new = good_new[good_indices]
 
     
+    #printing predicted positions of stars in img2 
     img_tracked = img2.copy() #copy of the second image to draw the motion vectors
     for old, new in zip(good_old,good_new):
         a, b = new.ravel()  #to access x and y as individual variables
@@ -243,7 +246,7 @@ if __name__ == "__main__":
         cv.circle(img_tracked, (int(a), int(b)), 3, (0, 0, 255), -1)
 
     # --- Step 5: Display the result ---
-    cv.imshow("Tracked Features (Lucas-Kanade)", img_tracked)
+    cv.imshow("Predicted stars in img2 (Lucas-Kanade)", img_tracked)
     cv.waitKey(0)
     cv.destroyAllWindows()
 
@@ -273,16 +276,16 @@ if __name__ == "__main__":
     good_old1 = p1.reshape(-1, 2)[good_indices]
     good_new = p1.reshape(-1, 2)[st.flatten() == 1]
 
-    
+    #printing predicted positions of stars in img3
     img_tracked = img3.copy() #copy of the second image to draw the motion vectors
     for old, new in zip(p1,p2):
         a, b = new.ravel()  #to access x and y as individual variables
         c, d = old.ravel()
-        cv.line(img_tracked, (int(c), int(d)), (int(a), int(b)), (0, 255, 0), 2)
-        cv.circle(img_tracked, (int(a), int(b)), 3, (0, 0, 255), -1)
+        cv.line(img_tracked, (int(c), int(d)), (int(a), int(b)), (255, 0, 0), 2)
+        cv.circle(img_tracked, (int(a), int(b)), 3, (255, 0, 0), -1)
 
    #Display the results
-    cv.imshow("Tracked Features (Lucas-Kanade)", img_tracked)
+    cv.imshow("Predicted stars in img3 (Lucas-Kanade)", img_tracked)
     cv.waitKey(0)
     cv.destroyAllWindows()
 
