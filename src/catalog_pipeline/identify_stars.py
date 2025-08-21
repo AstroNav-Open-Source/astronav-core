@@ -47,57 +47,60 @@ def query_star_pairs(theta_obs, delta_theta, db_path=DB_PATH, limit=50):
 def angle_between(v1, v2):
     return np.degrees(np.arccos(np.clip(np.dot(v1, v2), -1, 1)))
 
-def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST_500, limit=20):
-    from collections import defaultdict
-    import itertools
-    """
-    Identify stars based on triangle voting, given detected unit vectors.
-    
-    Arguments:
-    - detected_vectors: list of np.array([x, y, z]) unit vectors
-    - angle_tolerance: tolerance in degrees for triangle matching
-    - db_path: path to the star catalog database
-    
-    Returns:
-    - final_votes: dict {detected_star_idx: (HIP_id, vote_score)}
-    """
-    n = len(detected_vectors)
-    votes = defaultdict(lambda: defaultdict(float))
-    epsilon = 1e-5
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH, limit=20):
+     from collections import defaultdict
+     import itertools
+     """
+     Identify stars based on triangle voting, given detected unit vectors.
 
-    print(f"DEBUG: Processing {n} detected stars for triplet matching")
-    print(f"DEBUG: Using database: {db_path}")
+     Arguments:
+     - detected_vectors: list of np.array([x, y, z]) unit vectors
+     - angle_tolerance: tolerance in degrees for triangle matching
+     - db_path: path to the star catalog database
 
-    # All combinations of 3 detected stars
-    triplet_count = 0
-    for (i, j, k) in itertools.combinations(range(n), 3):
-        triplet_count += 1
-        vi, vj, vk = detected_vectors[i], detected_vectors[j], detected_vectors[k]
+     Returns:
+     - final_votes: dict {detected_star_idx: (HIP_id, vote_score)}
+     """
+     n = len(detected_vectors)
+     votes = defaultdict(lambda: defaultdict(float))
+     epsilon = 1e-5
+     detected_vectors = detected_vectors[:6]
+     n = len(detected_vectors)  # Update n to reflect actual number of vectors
+     print(f"DEBUG: Using {n} detected stars (limited from original)")
 
-        # Compute triangle side lengths
-        a = angle_between(vi, vj)
-        b = angle_between(vj, vk)
-        c = angle_between(vk, vi)
-        triplet_descriptor = tuple(sorted([a, b, c]))
+     print(f"DEBUG: Processing {n} detected stars for triplet matching")
+     print(f"DEBUG: Using database: {db_path}")
 
-        print(f"DEBUG: Triplet {triplet_count}: stars ({i},{j},{k}), angles: {a:.2f}, {b:.2f}, {c:.2f}")
+     # All combinations of 3 detected stars
+     triplet_count = 0
+     for (i, j, k) in itertools.combinations(range(n), 3):
+          triplet_count += 1
+          vi, vj, vk = detected_vectors[i], detected_vectors[j], detected_vectors[k]
 
-        # Try to find catalog pairs close to these angles
-        matches_ab = query_star_pairs(a, angle_tolerance, db_path=db_path, limit=limit)
-        matches_bc = query_star_pairs(b, angle_tolerance, db_path=db_path, limit=limit)
-        matches_ca = query_star_pairs(c, angle_tolerance, db_path=db_path, limit=limit)
+          # Compute triangle side lengths
+          a = angle_between(vi, vj)
+          b = angle_between(vj, vk)
+          c = angle_between(vk, vi)
+          triplet_descriptor = tuple(sorted([a, b, c]))
 
-        print(f"DEBUG: Found {len(matches_ab)}, {len(matches_bc)}, {len(matches_ca)} matches for angles")
+          print(f"DEBUG: Triplet {triplet_count}: stars ({i},{j},{k}), angles: {a:.2f}, {b:.2f}, {c:.2f}")
 
-        if not matches_ab or not matches_bc or not matches_ca:
-            print(f"DEBUG: Skipping triplet due to missing matches")
-            continue
+          # Try to find catalog pairs close to these angles
+          matches_ab = query_star_pairs(a, angle_tolerance, db_path=db_path, limit=limit)
+          matches_bc = query_star_pairs(b, angle_tolerance, db_path=db_path, limit=limit)
+          matches_ca = query_star_pairs(c, angle_tolerance, db_path=db_path, limit=limit)
 
-        # Brute-force match catalog triangles by checking all combos
-        valid_triangles = 0
-        for (hipA1, hipB1, angle_ab) in matches_ab:
-            for (hipB2, hipC1, angle_bc) in matches_bc:
-                for (hipC2, hipA2, angle_ca) in matches_ca:
+          print(f"DEBUG: Found {len(matches_ab)}, {len(matches_bc)}, {len(matches_ca)} matches for angles")
+
+          if not matches_ab or not matches_bc or not matches_ca:
+               print(f"DEBUG: Skipping triplet due to missing matches")
+               continue
+
+          # Brute-force match catalog triangles by checking all combos
+          valid_triangles = 0
+          for (hipA1, hipB1, angle_ab) in matches_ab:
+               for (hipB2, hipC1, angle_bc) in matches_bc:
+                    for (hipC2, hipA2, angle_ca) in matches_ca:
 
                     # Try to find a consistent triangle by checking all possible star assignments
                     # We need to find three unique stars that form a triangle
@@ -109,28 +112,28 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
                     ca_pairs = [(hipC2, hipA2), (hipA2, hipC2)]  # both orientations
                     
                     for (sA_ab, sB_ab) in ab_pairs:
-                        for (sB_bc, sC_bc) in bc_pairs:
-                            for (sC_ca, sA_ca) in ca_pairs:
-                                # Check if we can form a consistent triangle: A-B, B-C, C-A
-                                if sB_ab == sB_bc and sC_bc == sC_ca and sA_ca == sA_ab:
-                                    triangle = (sA_ab, sB_ab, sC_bc)
-                                    if len(set(triangle)) == 3:  # three unique stars
+                         for (sB_bc, sC_bc) in bc_pairs:
+                              for (sC_ca, sA_ca) in ca_pairs:
+                                   # Check if we can form a consistent triangle: A-B, B-C, C-A
+                                   if sB_ab == sB_bc and sC_bc == sC_ca and sA_ca == sA_ab:
+                                        triangle = (sA_ab, sB_ab, sC_bc)
+                                        if len(set(triangle)) == 3:  # three unique stars
                                         possible_triangles.append(triangle)
                     
                     if not possible_triangles:
-                        continue
+                         continue
                     
                     # Use the first valid triangle found
                     hipA1, hipB1, hipC1 = possible_triangles[0]
 
                     # Recompute actual triangle from catalog HIPs
                     try:
-                        vA = get_catalog_vector(hipA1, db_path=db_path)
-                        vB = get_catalog_vector(hipB1, db_path=db_path)
-                        vC = get_catalog_vector(hipC1, db_path=db_path)
+                         vA = get_catalog_vector(hipA1, db_path=db_path)
+                         vB = get_catalog_vector(hipB1, db_path=db_path)
+                         vC = get_catalog_vector(hipC1, db_path=db_path)
                     except Exception as e:
-                        print(f"DEBUG: Failed to get catalog vectors for HIPs {hipA1}, {hipB1}, {hipC1}: {e}")
-                        continue  # catalog vector not found
+                         print(f"DEBUG: Failed to get catalog vectors for HIPs {hipA1}, {hipB1}, {hipC1}: {e}")
+                         continue  # catalog vector not found
 
                     ca = angle_between(vA, vB)
                     cb = angle_between(vB, vC)
@@ -140,31 +143,31 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
                     # Check if angles match within threshold
                     residual = sum([abs(x - y) for x, y in zip(triplet_descriptor, catalog_descriptor)])
                     if residual > angle_tolerance * 3:
-                        continue  # angles too far off
+                         continue  # angles too far off
 
                     valid_triangles += 1
                     print(f"DEBUG: Valid triangle found: HIPs {hipA1}, {hipB1}, {hipC1}, residual: {residual:.3f}")
 
                     # Try all 6 permutations of detected-to-catalog star mapping
                     for perm in itertools.permutations([(i, hipA1), (j, hipB1), (k, hipC1)]):
-                        # Vote weighted by inverse residual
-                        for (di, hi) in perm:
-                            votes[di][hi] += 1.0 / (residual + epsilon)
+                         # Vote weighted by inverse residual
+                         for (di, hi) in perm:
+                              votes[di][hi] += 1.0 / (residual + epsilon)
 
-        print(f"DEBUG: Found {valid_triangles} valid catalog triangles for this detected triplet")
+          print(f"DEBUG: Found {valid_triangles} valid catalog triangles for this detected triplet")
 
-    print(f"DEBUG: Vote accumulation complete. Processing {len(votes)} detected stars with votes")
+     print(f"DEBUG: Vote accumulation complete. Processing {len(votes)} detected stars with votes")
 
-    # Final selection: HIP with highest votes per detected index
-    final_votes = {}
-    for i in votes:
-        if votes[i]:
-            hip, score = max(votes[i].items(), key=lambda x: x[1])
-            final_votes[i] = (hip, score)
-            print(f"DEBUG: Detected star {i} -> HIP {hip} with score {score:.3f}")
+     # Final selection: HIP with highest votes per detected index
+     final_votes = {}
+     for i in votes:
+          if votes[i]:
+               hip, score = max(votes[i].items(), key=lambda x: x[1])
+               final_votes[i] = (hip, score)
+               print(f"DEBUG: Detected star {i} -> HIP {hip} with score {score:.3f}")
 
-    print(f"DEBUG: Final triplet matches: {len(final_votes)} stars identified")
-    return final_votes
+     print(f"DEBUG: Final triplet matches: {len(final_votes)} stars identified")
+     return final_votes
 
 
 def visualize_star_identification(image_path, star_data, matches, title="Star Identification Results"):
@@ -584,7 +587,7 @@ if __name__ == "__main__":
         [-0.0504477,  -0.15321152,  0.98690489],
     ]
     angle_tolerance = 0.1
-    matches = identify_stars_from_vectors(detected_vectors, angle_tolerance=angle_tolerance, limit=20)
+    matches = identify_stars_from_vector(detected_vectors, angle_tolerance=angle_tolerance, limit=20)
     for det_idx, ranked in matches.items():
         print(f"Detected star {det_idx}: candidates (catalog HIP, votes): {ranked}") 
 
