@@ -1,4 +1,5 @@
 import sqlite3
+import numpy as np
 
 def get_pairs_by_angle(min_angle, max_angle, db_path='star_catalog.db', entries_limit=0):
     conn = sqlite3.connect(db_path)
@@ -41,6 +42,31 @@ def get_star_info(star_id, db_path='star_catalog.db'):
     results = c.fetchall()
     conn.close()
     return results
+
+def ra_dec_to_unit_vector(ra_deg, dec_deg):
+    """Convert right ascension and declination (in degrees) to a 3D unit vector."""
+    ra = np.radians(ra_deg)
+    dec = np.radians(dec_deg)
+    x = np.cos(dec) * np.cos(ra)
+    y = np.cos(dec) * np.sin(ra)
+    z = np.sin(dec)
+    return np.array([x, y, z])
+
+def get_catalog_vector(hip_id, db_path='star_catalog.db'):
+    """
+    Given a HIP ID, return the 3D unit vector in inertial space from the RA/Dec.
+    """
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute('SELECT raicrs, deicrs FROM stars WHERE hip=?', (hip_id,))
+    row = c.fetchone()
+    conn.close()
+
+    if row is None:
+        raise ValueError(f"HIP ID {hip_id} not found in catalog.")
+
+    ra, dec = float(row[0]), float(row[1])
+    return ra_dec_to_unit_vector(ra, dec)
 
 if __name__ == "__main__":
     print(get_pairs_by_angle_error_margin(30, 0.001, entries_limit=3))
