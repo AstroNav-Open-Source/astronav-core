@@ -59,7 +59,7 @@ def calculate_angular_distances(star_data):
      
      return angular_pairs
 
-def detect_stars(image_path, threshold_val=180, min_area=15, max_area=500, fov_deg= 66, visualize=False):
+def detect_stars(image_path, threshold_val=190, min_area=15, max_area=500, fov_deg= 66, visualize=False):
      """
      Detect stars in an image and convert their positions to 3D unit vectors in camera coordinates.
      """

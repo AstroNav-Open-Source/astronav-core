@@ -47,7 +47,7 @@ def query_star_pairs(theta_obs, delta_theta, db_path=DB_PATH, limit=50):
 def angle_between(v1, v2):
     return np.degrees(np.arccos(np.clip(np.dot(v1, v2), -1, 1)))
 
-def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH, limit=20):
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST, limit=20):
      from collections import defaultdict
      import itertools
      """
@@ -102,57 +102,57 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
                for (hipB2, hipC1, angle_bc) in matches_bc:
                     for (hipC2, hipA2, angle_ca) in matches_ca:
 
-                    # Try to find a consistent triangle by checking all possible star assignments
-                    # We need to find three unique stars that form a triangle
-                    possible_triangles = []
-                    
-                    # Try all combinations of star assignments from the three pairs
-                    ab_pairs = [(hipA1, hipB1), (hipB1, hipA1)]  # both orientations
-                    bc_pairs = [(hipB2, hipC1), (hipC1, hipB2)]  # both orientations  
-                    ca_pairs = [(hipC2, hipA2), (hipA2, hipC2)]  # both orientations
-                    
-                    for (sA_ab, sB_ab) in ab_pairs:
-                         for (sB_bc, sC_bc) in bc_pairs:
-                              for (sC_ca, sA_ca) in ca_pairs:
-                                   # Check if we can form a consistent triangle: A-B, B-C, C-A
-                                   if sB_ab == sB_bc and sC_bc == sC_ca and sA_ca == sA_ab:
-                                        triangle = (sA_ab, sB_ab, sC_bc)
-                                        if len(set(triangle)) == 3:  # three unique stars
-                                        possible_triangles.append(triangle)
-                    
-                    if not possible_triangles:
-                         continue
-                    
-                    # Use the first valid triangle found
-                    hipA1, hipB1, hipC1 = possible_triangles[0]
+                         # Try to find a consistent triangle by checking all possible star assignments
+                         # We need to find three unique stars that form a triangle
+                         possible_triangles = []
+                         
+                         # Try all combinations of star assignments from the three pairs
+                         ab_pairs = [(hipA1, hipB1), (hipB1, hipA1)]  # both orientations
+                         bc_pairs = [(hipB2, hipC1), (hipC1, hipB2)]  # both orientations  
+                         ca_pairs = [(hipC2, hipA2), (hipA2, hipC2)]  # both orientations
+                         
+                         for (sA_ab, sB_ab) in ab_pairs:
+                              for (sB_bc, sC_bc) in bc_pairs:
+                                   for (sC_ca, sA_ca) in ca_pairs:
+                                        # Check if we can form a consistent triangle: A-B, B-C, C-A
+                                        if sB_ab == sB_bc and sC_bc == sC_ca and sA_ca == sA_ab:
+                                             triangle = (sA_ab, sB_ab, sC_bc)
+                                             if len(set(triangle)) == 3:  # three unique stars
+                                                  possible_triangles.append(triangle)
+                         
+                         if not possible_triangles:
+                              continue
+                         
+                         # Use the first valid triangle found
+                         hipA1, hipB1, hipC1 = possible_triangles[0]
 
-                    # Recompute actual triangle from catalog HIPs
-                    try:
-                         vA = get_catalog_vector(hipA1, db_path=db_path)
-                         vB = get_catalog_vector(hipB1, db_path=db_path)
-                         vC = get_catalog_vector(hipC1, db_path=db_path)
-                    except Exception as e:
-                         print(f"DEBUG: Failed to get catalog vectors for HIPs {hipA1}, {hipB1}, {hipC1}: {e}")
-                         continue  # catalog vector not found
+                         # Recompute actual triangle from catalog HIPs
+                         try:
+                              vA = get_catalog_vector(hipA1, db_path=db_path)
+                              vB = get_catalog_vector(hipB1, db_path=db_path)
+                              vC = get_catalog_vector(hipC1, db_path=db_path)
+                         except Exception as e:
+                              print(f"DEBUG: Failed to get catalog vectors for HIPs {hipA1}, {hipB1}, {hipC1}: {e}")
+                              continue  # catalog vector not found
 
-                    ca = angle_between(vA, vB)
-                    cb = angle_between(vB, vC)
-                    cc = angle_between(vC, vA)
-                    catalog_descriptor = sorted([ca, cb, cc])
+                         ca = angle_between(vA, vB)
+                         cb = angle_between(vB, vC)
+                         cc = angle_between(vC, vA)
+                         catalog_descriptor = sorted([ca, cb, cc])
 
-                    # Check if angles match within threshold
-                    residual = sum([abs(x - y) for x, y in zip(triplet_descriptor, catalog_descriptor)])
-                    if residual > angle_tolerance * 3:
-                         continue  # angles too far off
+                         # Check if angles match within threshold
+                         residual = sum([abs(x - y) for x, y in zip(triplet_descriptor, catalog_descriptor)])
+                         if residual > angle_tolerance * 3:
+                              continue  # angles too far off
 
-                    valid_triangles += 1
-                    print(f"DEBUG: Valid triangle found: HIPs {hipA1}, {hipB1}, {hipC1}, residual: {residual:.3f}")
+                         valid_triangles += 1
+                         print(f"DEBUG: Valid triangle found: HIPs {hipA1}, {hipB1}, {hipC1}, residual: {residual:.3f}")
 
-                    # Try all 6 permutations of detected-to-catalog star mapping
-                    for perm in itertools.permutations([(i, hipA1), (j, hipB1), (k, hipC1)]):
-                         # Vote weighted by inverse residual
-                         for (di, hi) in perm:
-                              votes[di][hi] += 1.0 / (residual + epsilon)
+                         # Try all 6 permutations of detected-to-catalog star mapping
+                         for perm in itertools.permutations([(i, hipA1), (j, hipB1), (k, hipC1)]):
+                              # Vote weighted by inverse residual
+                              for (di, hi) in perm:
+                                   votes[di][hi] += 1.0 / (residual + epsilon)
 
           print(f"DEBUG: Found {valid_triangles} valid catalog triangles for this detected triplet")
 
