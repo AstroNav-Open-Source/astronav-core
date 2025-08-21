@@ -167,6 +167,100 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
     return final_votes
 
 
+def visualize_star_identification(image_path, star_data, matches, title="Star Identification Results"):
+    """
+    Visualize star identification results overlaid on the original image.
+    
+    Args:
+        image_path: Path to the original image
+        star_data: List of detected star data from detect_stars()
+        matches: Dictionary of identification results from identify_stars_from_vector()
+        title: Title for the plot
+    """
+    import matplotlib.pyplot as plt
+    import cv2
+    from collections import Counter
+    
+    # Read and display the image
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    plt.figure(figsize=(15, 10))
+    plt.imshow(img, cmap='gray', origin='upper')
+    plt.title(title)
+    
+    # Overlay star identifications
+    for i, star in enumerate(star_data):
+        pos_x, pos_y = star["position"]
+        intensity = star["intensity"]
+        
+        if i in matches:
+            hip_id, confidence = matches[i]
+            # Identified stars - green circle with HIP ID and confidence
+            plt.scatter(pos_x, pos_y, c='green', s=100, marker='o', alpha=0.7)
+            plt.annotate(f'★{i}\nHIP {hip_id}\n{confidence:.1f}', 
+                        (pos_x, pos_y), 
+                        xytext=(10, 10), textcoords='offset points',
+                        bbox=dict(boxstyle='round,pad=0.3', facecolor='green', alpha=0.7),
+                        fontsize=8, color='white', weight='bold')
+        else:
+            # Unidentified stars - red circle with star index
+            plt.scatter(pos_x, pos_y, c='red', s=80, marker='x', alpha=0.7)
+            plt.annotate(f'{i}\nI={intensity:.0f}', 
+                        (pos_x, pos_y), 
+                        xytext=(10, -20), textcoords='offset points',
+                        bbox=dict(boxstyle='round,pad=0.3', facecolor='red', alpha=0.7),
+                        fontsize=8, color='white')
+    
+    # Add legend
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor='green', alpha=0.7, label=f'Identified ({len(matches)} stars)'),
+        Patch(facecolor='red', alpha=0.7, label=f'Unidentified ({len(star_data) - len(matches)} stars)')
+    ]
+    plt.legend(handles=legend_elements, loc='upper right')
+    
+    # Add summary text
+    identified_hips = [matches[i][0] for i in matches.keys()]
+    unique_hips = set(identified_hips)
+    
+    summary_text = f"""Detection Summary:
+Total Stars: {len(star_data)}
+Identified: {len(matches)}
+Unique HIPs: {len(unique_hips)}
+HIP IDs: {sorted(unique_hips)}"""
+    
+    plt.text(0.02, 0.98, summary_text, transform=plt.gca().transAxes, 
+            verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8),
+            fontsize=10)
+    
+    # Check for and display warnings
+    warnings = []
+    if len(identified_hips) != len(unique_hips):
+        warnings.append("⚠️ Duplicate HIP assignments!")
+        hip_counts = Counter(identified_hips)
+        for hip, count in hip_counts.items():
+            if count > 1:
+                duplicate_stars = [i for i, (h, _) in matches.items() if h == hip]
+                warnings.append(f"HIP {hip} → stars {duplicate_stars}")
+    
+    if matches:
+        confidences = [confidence for _, confidence in matches.values()]
+        unique_confidences = set(confidences)
+        if len(unique_confidences) < len(confidences):
+            warnings.append("⚠️ Identical confidence scores!")
+    
+    if warnings:
+        warning_text = "\n".join(warnings)
+        plt.text(0.02, 0.02, warning_text, transform=plt.gca().transAxes, 
+                verticalalignment='bottom', bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.8),
+                fontsize=9, color='red', weight='bold')
+    
+    plt.xlabel('X (pixels)')
+    plt.ylabel('Y (pixels)')
+    plt.tight_layout()
+    plt.show()
+
+
 def deprecated_identify_stars_from_vectors_2_0(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST_500, limit=100):
      """
      Given detected star unit vectors (shape: N x 3),

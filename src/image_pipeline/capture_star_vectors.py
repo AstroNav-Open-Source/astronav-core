@@ -101,7 +101,8 @@ def detect_stars(image_path, threshold_val=180, min_area=15, max_area=500, fov_d
                     "vector": vector
                })
                print(f"Star {len(star_data)-1}: Pos=({x:.2f}, {y:.2f}), Vec={vector}, I={intensity:.1f}")
-
+     
+     star_data.sort(key=lambda star: star["intensity"], reverse=True)
      if visualize:
           visualize_results(img, thresh, star_data)	
      return img, thresh, star_data
