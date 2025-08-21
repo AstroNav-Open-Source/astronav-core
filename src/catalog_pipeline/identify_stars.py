@@ -2,11 +2,12 @@ import numpy as np
 import sqlite3
 import bisect
 import os
-from .db_operations import get_star_info
+from .db_operations import get_catalog_vector, get_star_info
 from scipy.optimize import linear_sum_assignment  # Added for Hungarian algorithm
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'star_catalog.db')
-
+DB_PATH_TEST = os.path.join(os.path.dirname(__file__), 'star_catalog_small_test.db')
+DB_PATH_TEST_500 = os.path.join(os.path.dirname(__file__), 'star_catalog_small_test_500_stars.db')
 EARLY_SUBGRAPH_STAR_EXIT = 10000
 
 # def get_all_angles(db_path=DB_PATH):
@@ -42,7 +43,256 @@ def query_star_pairs(theta_obs, delta_theta, db_path=DB_PATH, limit=50):
     conn.close()
     return results
 
-def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=DB_PATH, limit=50):
+
+def angle_between(v1, v2):
+    return np.degrees(np.arccos(np.clip(np.dot(v1, v2), -1, 1)))
+
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST_500, limit=20):
+    from collections import defaultdict
+    import itertools
+    """
+    Identify stars based on triangle voting, given detected unit vectors.
+    
+    Arguments:
+    - detected_vectors: list of np.array([x, y, z]) unit vectors
+    - angle_tolerance: tolerance in degrees for triangle matching
+    - db_path: path to the star catalog database
+    
+    Returns:
+    - final_votes: dict {detected_star_idx: (HIP_id, vote_score)}
+    """
+    n = len(detected_vectors)
+    votes = defaultdict(lambda: defaultdict(float))
+    epsilon = 1e-5
+
+    print(f"DEBUG: Processing {n} detected stars for triplet matching")
+    print(f"DEBUG: Using database: {db_path}")
+
+    # All combinations of 3 detected stars
+    triplet_count = 0
+    for (i, j, k) in itertools.combinations(range(n), 3):
+        triplet_count += 1
+        vi, vj, vk = detected_vectors[i], detected_vectors[j], detected_vectors[k]
+
+        # Compute triangle side lengths
+        a = angle_between(vi, vj)
+        b = angle_between(vj, vk)
+        c = angle_between(vk, vi)
+        triplet_descriptor = tuple(sorted([a, b, c]))
+
+        print(f"DEBUG: Triplet {triplet_count}: stars ({i},{j},{k}), angles: {a:.2f}, {b:.2f}, {c:.2f}")
+
+        # Try to find catalog pairs close to these angles
+        matches_ab = query_star_pairs(a, angle_tolerance, db_path=db_path, limit=limit)
+        matches_bc = query_star_pairs(b, angle_tolerance, db_path=db_path, limit=limit)
+        matches_ca = query_star_pairs(c, angle_tolerance, db_path=db_path, limit=limit)
+
+        print(f"DEBUG: Found {len(matches_ab)}, {len(matches_bc)}, {len(matches_ca)} matches for angles")
+
+        if not matches_ab or not matches_bc or not matches_ca:
+            print(f"DEBUG: Skipping triplet due to missing matches")
+            continue
+
+        # Brute-force match catalog triangles by checking all combos
+        valid_triangles = 0
+        for (hipA1, hipB1, angle_ab) in matches_ab:
+            for (hipB2, hipC1, angle_bc) in matches_bc:
+                for (hipC2, hipA2, angle_ca) in matches_ca:
+
+                    # Try to find a consistent triangle by checking all possible star assignments
+                    # We need to find three unique stars that form a triangle
+                    possible_triangles = []
+                    
+                    # Try all combinations of star assignments from the three pairs
+                    ab_pairs = [(hipA1, hipB1), (hipB1, hipA1)]  # both orientations
+                    bc_pairs = [(hipB2, hipC1), (hipC1, hipB2)]  # both orientations  
+                    ca_pairs = [(hipC2, hipA2), (hipA2, hipC2)]  # both orientations
+                    
+                    for (sA_ab, sB_ab) in ab_pairs:
+                        for (sB_bc, sC_bc) in bc_pairs:
+                            for (sC_ca, sA_ca) in ca_pairs:
+                                # Check if we can form a consistent triangle: A-B, B-C, C-A
+                                if sB_ab == sB_bc and sC_bc == sC_ca and sA_ca == sA_ab:
+                                    triangle = (sA_ab, sB_ab, sC_bc)
+                                    if len(set(triangle)) == 3:  # three unique stars
+                                        possible_triangles.append(triangle)
+                    
+                    if not possible_triangles:
+                        continue
+                    
+                    # Use the first valid triangle found
+                    hipA1, hipB1, hipC1 = possible_triangles[0]
+
+                    # Recompute actual triangle from catalog HIPs
+                    try:
+                        vA = get_catalog_vector(hipA1, db_path=db_path)
+                        vB = get_catalog_vector(hipB1, db_path=db_path)
+                        vC = get_catalog_vector(hipC1, db_path=db_path)
+                    except Exception as e:
+                        print(f"DEBUG: Failed to get catalog vectors for HIPs {hipA1}, {hipB1}, {hipC1}: {e}")
+                        continue  # catalog vector not found
+
+                    ca = angle_between(vA, vB)
+                    cb = angle_between(vB, vC)
+                    cc = angle_between(vC, vA)
+                    catalog_descriptor = sorted([ca, cb, cc])
+
+                    # Check if angles match within threshold
+                    residual = sum([abs(x - y) for x, y in zip(triplet_descriptor, catalog_descriptor)])
+                    if residual > angle_tolerance * 3:
+                        continue  # angles too far off
+
+                    valid_triangles += 1
+                    print(f"DEBUG: Valid triangle found: HIPs {hipA1}, {hipB1}, {hipC1}, residual: {residual:.3f}")
+
+                    # Try all 6 permutations of detected-to-catalog star mapping
+                    for perm in itertools.permutations([(i, hipA1), (j, hipB1), (k, hipC1)]):
+                        # Vote weighted by inverse residual
+                        for (di, hi) in perm:
+                            votes[di][hi] += 1.0 / (residual + epsilon)
+
+        print(f"DEBUG: Found {valid_triangles} valid catalog triangles for this detected triplet")
+
+    print(f"DEBUG: Vote accumulation complete. Processing {len(votes)} detected stars with votes")
+
+    # Final selection: HIP with highest votes per detected index
+    final_votes = {}
+    for i in votes:
+        if votes[i]:
+            hip, score = max(votes[i].items(), key=lambda x: x[1])
+            final_votes[i] = (hip, score)
+            print(f"DEBUG: Detected star {i} -> HIP {hip} with score {score:.3f}")
+
+    print(f"DEBUG: Final triplet matches: {len(final_votes)} stars identified")
+    return final_votes
+
+
+def deprecated_identify_stars_from_vectors_2_0(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST_500, limit=100):
+     """
+     Given detected star unit vectors (shape: N x 3),
+     identify likely catalog matches for each detected star by matching pairwise angles.
+     Uses an assignment matrix and Hungarian algorithm for optimal assignment.
+     Returns: dict mapping detected star index to (catalog HIP, vote count)
+     """
+     import itertools
+     detected_vectors = np.asarray(detected_vectors)
+     n = detected_vectors.shape[0]
+     print(f"DEBUG: Processing {n} detected stars")
+
+     # Compute all unique pairs and their angles
+     pairs = list(itertools.combinations(range(n), 2))
+     detected_angles = []  # (i, j, angle)
+     for i, j in pairs:
+          v1 = detected_vectors[i]
+          v2 = detected_vectors[j]
+          dot = np.clip(np.dot(v1, v2), -1, 1)
+          angle = np.degrees(np.arccos(dot))
+          detected_angles.append((i, j, angle))
+          print(f"DEBUG: Detected angle between star {i} and star {j}: {angle} degrees")
+
+     catalog_star_ids = set() # this builds a hash set
+     pair_matches = dict()  # (i, j) -> list of (star1_id, star2_id)
+     total_catalog_matches = 0
+     for i, j, angle in detected_angles:
+          matches = query_star_pairs(angle, angle_tolerance, db_path=db_path, limit=limit)
+          pair_matches[(i, j)] = matches # data format: (i, j) = [(61379, 68002, 14.242087679330531), (72378, 76945, 14.242087343190798), (31457, 33977, 14.242081929215967)
+          print(f"the pair {i}-{j} has {len(matches)} matches")
+          total_catalog_matches += len(matches)
+          
+          epsilon = 0.00002 # this will prevent division by zero
+          scored_matches = []
+          for star1_id, star2_id, catalog_angle in matches:
+               residual = abs(angle - catalog_angle)
+               weight = 1.0 / (residual + epsilon)
+               scored_matches.append((star1_id, star2_id, catalog_angle, residual, weight))
+
+          pair_matches[(i, j)] = scored_matches
+          
+          for star1_id, star2_id, _ in matches:
+               catalog_star_ids.add(star1_id)
+               catalog_star_ids.add(star2_id)
+     catalog_star_ids = sorted(list(catalog_star_ids))
+     print(f"DEBUG: Found {total_catalog_matches} total catalog pair matches, {len(catalog_star_ids)} unique catalog stars")
+
+     # Create mappings between catalog star HIP IDs and matrix column indices
+     # This allows us to convert between meaningful star names (HIP 61379) and matrix positions (column 0)
+     hip_to_column_idx = {}  # Maps HIP ID -> matrix column index
+     column_idx_to_hip = {}  # Maps matrix column index -> HIP ID
+     
+     hip_to_column_idx = {hip_id: idx for idx, hip_id in enumerate(catalog_star_ids)}
+     column_idx_to_hip = {idx: hip_id for idx, hip_id in enumerate(catalog_star_ids)}
+     # Build possible catalog star candidates for each detected star
+
+     from collections import defaultdict
+     # 1) degree of each detected star (how many pairs it's in)
+     deg = [0]*n
+     for i, j, _ in detected_angles:
+         deg[i] += 1
+         deg[j] += 1
+
+     # 2) accumulate weighted evidence: possible[i][hip] = total score
+     possible = defaultdict(lambda: defaultdict(float))
+
+     for (i, j), scored in pair_matches.items():
+          for hip1, hip2, _, _, w in scored: # scored = ((star1_id, star2_id, catalog_angle, residual, weight))
+               di = max(deg[i], 1)
+               dj = max(deg[j], 1)
+               # orientation 1
+               possible[i][hip1] += w / di
+               possible[j][hip2] += w / dj
+               # orientation 2 (swap)
+               possible[i][hip2] += w / di
+               possible[j][hip1] += w / dj
+
+     possible = prune_possible(possible, max_hips=20)
+
+     # map HIPs to columns
+     # Union of all HIPs in pruned results
+     selected_hips = sorted({hip for hip_scores in possible.values() for hip in hip_scores})
+     hip_to_col = {hip: idx for idx, hip in enumerate(selected_hips)}
+     col_to_hip = {idx: hip for hip, idx in hip_to_col.items()}
+
+     num_detected = len(possible)
+     num_catalog = len(hip_to_col)
+     score_matrix = np.zeros((num_detected, num_catalog), dtype=np.float64)
+
+
+     for i in range(num_detected):
+          for hip, score in possible[i].items():
+               if hip in hip_to_col:
+                    j = hip_to_col[hip]
+                    score_matrix[i, j] = score
+
+     cost_matrix = -score_matrix
+     print(f"DEBUG: Cost matrix: {cost_matrix}")
+     from scipy.optimize import linear_sum_assignment
+     rows, cols = linear_sum_assignment(cost_matrix)
+
+     final_matches = {}
+
+     for i, j in zip(rows, cols):
+          hip = col_to_hip[j]
+          score = score_matrix[i, j]
+          final_matches[i] = (hip, score)
+          print(f"Image star {i} matched to HIP {hip} with score {score:.2f}")
+
+     print(f"DEBUG: Final matches: {final_matches}")
+     return final_matches
+
+def prune_possible(possible, max_hips=20):
+     from collections import defaultdict
+     pruned = defaultdict(dict)  # same structure as possible but pruned
+
+     for i, hip_scores in possible.items():
+          # Sort HIPs by descending score
+          sorted_hips = sorted(hip_scores.items(), key=lambda x: -x[1])
+          # Keep only the top `max_hips`
+          for hip, score in sorted_hips[:max_hips]:
+               pruned[i][hip] = score
+
+     return pruned
+
+def deprecated_identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=DB_PATH, limit=50):
     """
     Given detected star unit vectors (shape: N x 3),
     identify likely catalog matches for each detected star by matching pairwise angles.
@@ -62,6 +312,7 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
         v2 = detected_vectors[j]
         dot = np.clip(np.dot(v1, v2), -1, 1)
         angle = np.degrees(np.arccos(dot))
+        angle = round(angle, 2)
         detected_angles.append((i, j, angle))
     
     print(f"DEBUG: Computed {len(detected_angles)} pairwise angles")
@@ -73,6 +324,7 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
     total_catalog_matches = 0
     for i, j, angle in detected_angles:
         matches = query_star_pairs(angle, angle_tolerance, db_path=db_path, limit=limit)
+        matches = [(star1_id, star2_id, round(catalog_angle, 2)) for star1_id, star2_id, catalog_angle in matches]
         pair_matches[(i, j)] = matches # data format: (i, j) = [(61379, 68002, 14.242087679330531), (72378, 76945, 14.242087343190798), (31457, 33977, 14.242081929215967)
         total_catalog_matches += len(matches)
         for star1_id, star2_id, _ in matches:
@@ -115,7 +367,7 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
         def backtrack(assignment, used_catalog_stars, depth):
             if assignments_checked[0] >= max_assignments:
                 return
-            if depth == n:
+            if depth == n: #where n is the number of detected stars
                 # Check all pairs for consistency
                 valid = True
                 for (i, j), matches in pair_matches.items():
@@ -159,7 +411,7 @@ def identify_stars_from_vectors(detected_vectors, angle_tolerance=2.0, db_path=D
                 if not partial_valid:
                     continue
                 assignment[det_idx] = cat_id
-                used_catalog_stars.add(cat_id)
+                used_catalog_stars.add(cat_id) # This catalog star is now unavailable for other detected stars
                 backtrack(assignment, used_catalog_stars, depth + 1)
                 used_catalog_stars.remove(cat_id)
                 del assignment[det_idx]
@@ -190,7 +442,18 @@ def get_identified_star_info(matches, db_path=DB_PATH):
     identified = {}
     for det_idx, ranked in matches.items():
         if ranked:
-            best_hip = ranked[0][0]
+            # Handle both formats:
+            # Format 1: [(hip_id, score), ...] - list of tuples (old format)
+            # Format 2: (hip_id, score) - single tuple (new triplet format)
+            if isinstance(ranked, list) and len(ranked) > 0:
+                best_hip = ranked[0][0]  # First element of first tuple
+            elif isinstance(ranked, tuple) and len(ranked) == 2:
+                best_hip = ranked[0]  # First element of tuple
+            else:
+                print(f"Warning: Unexpected format for matches[{det_idx}]: {ranked}")
+                identified[det_idx] = (None, None)
+                continue
+                
             info = get_star_info(best_hip, db_path=db_path)
             identified[det_idx] = (best_hip, info)
         else:
