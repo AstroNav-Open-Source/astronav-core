@@ -232,7 +232,7 @@ def extract_ra_dec(filename):
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
     # build the path to the images folder relative to this script
-folder_path = os.path.join(script_dir, "..", "test", "test_images", "Tracking_test" , "for_tracking_N_images")
+folder_path = os.path.join(script_dir, "..", "test", "test_images", "Tracking_test" , "N_digital_images")
 
     # get all image files 
 image_files = glob.glob(os.path.join(folder_path, "*.jpeg")) 
