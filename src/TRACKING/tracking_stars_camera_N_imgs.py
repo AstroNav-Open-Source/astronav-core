@@ -24,7 +24,8 @@ def get_intrinsics (img):
     return cx,cy,fx,fy
 
 def processing_image (img):
-    gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY)   #trasform it in grayscale(the function works using only brightness)
+    # print(f"DEBUG image path is: {img} ")
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY )   #trasform it in grayscale(the function works using only brightness)
     blurred = cv.GaussianBlur(gray, (3, 3), 1)  
     retval,image_processed = cv.threshold(blurred,150, 255, cv.THRESH_BINARY)
     return image_processed
@@ -335,15 +336,15 @@ if __name__ == "__main__":
 
     #take img 1 and set as first image to start off loop
     ImgMgr = TakeImage()
-    image_path_0 = ImgMgr.take_images_continually()
-
+    image_path_0 = ImgMgr.take_first_image()
+    print("DEBUG: you are taking the first image")
     img0 = cv.imread(image_path_0)
 
-    ###make a list of unprocessed images and start it with img 1:
+    ###make a list of unprocessed images and start it with img0 :
     images = []
     images.append(img0)
 
-    #create list of processed images and start with img1:
+    #create list of processed images and start with img0:
     processed_images = []
     processed_img0 = processing_image(img0)
     processed_images.append(processed_img0)
@@ -451,15 +452,18 @@ if __name__ == "__main__":
     taking_photos = True
     while (taking_photos == True):
         #take a photo with the camera 
-        image_path_curr = ImgMgr.take_image_for_tracking()
+        image_path_curr = ImgMgr.take_images_continually()
+
+        #check if need to exit while
+        if image_path_curr is None:
+            print("Exit requested — stopping image capture.")
+            taking_photos = False
+            break  # Optional: break out of loop immediately
 
         # now you can read the image
         img_curr = cv.imread(str(image_path_curr))
 
-        #for naming the photos:
-        counter = 1
-
-        img_curr = cv.imread(image_path_curr)
+        
 
         #add image to list
         images.append(img_curr)
@@ -475,9 +479,6 @@ if __name__ == "__main__":
         # Forward-backward tracking
         good_prev, good_curr = track_with_fb_check(img_prev, img_curr, p_prev, lk_params, fb_thresh)
 
-        if len(good_curr) == 0:
-            print(f"Frame {i}: no reliable points tracked")
-            continue
 
         # Convert pixel positions to camera-frame rays
         v_prev = pixel_to_cam_ray(good_prev, cx, cy, fx, fy, flip_y=False)
@@ -494,7 +495,7 @@ if __name__ == "__main__":
         angle_rad = np.linalg.norm(rotvec)
         angle_deg = np.degrees(angle_rad)
 
-        print(f"Frame {i}: rotation angle in equatorial system = {angle_deg:.6f} degrees")
+        print(f"Frame: rotation angle in equatorial system = {angle_deg:.6f} degrees")
 
         # 1) accumulate total angle of movement
         total_angle_deg += angle_deg
@@ -512,6 +513,11 @@ if __name__ == "__main__":
         # Prepare for next iteration
         p_prev = good_curr.reshape(-1,1,2).astype(np.float32)
         rot_prev_to_eq = rot_curr_to_eq
+
+        k = cv.waitKey(1) & 0xFF
+        if k in (27, ord(' ')):
+            taking_photos = False
+
 
 
 #total degree of movement from increments:
