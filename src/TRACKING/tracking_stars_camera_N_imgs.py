@@ -6,7 +6,10 @@ import glob
 import os
 import re
 from scipy.spatial.transform import Rotation as R
-from take_image import take_image_for_tracking
+import sys
+sys.path.append("..") # Adds higher directory to python modules path.
+
+from take_image import TakeImage
 
 #install opencv-contrib-python
 
@@ -331,7 +334,8 @@ if __name__ == "__main__":
 #### Step 1: calibration from first image
 
     #take img 1 and set as first image to start off loop
-    image_path_0 = take_images_continually()
+    ImgMgr = TakeImage()
+    image_path_0 = ImgMgr.take_images_continually()
 
     img0 = cv.imread(image_path_0)
 
@@ -447,7 +451,7 @@ if __name__ == "__main__":
     taking_photos = True
     while (taking_photos == True):
         #take a photo with the camera 
-        image_path_curr = take_image_for_tracking()
+        image_path_curr = ImgMgr.take_image_for_tracking()
 
         # now you can read the image
         img_curr = cv.imread(str(image_path_curr))

@@ -55,6 +55,7 @@ def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
                          publisher.send_quaternion(Q_BODY_CURR["w"], Q_BODY_CURR["x"], Q_BODY_CURR["y"], Q_BODY_CURR["z"])
                          time.sleep(0.25)
                if useIMGTracking:
+                    pass
                     #put your tracking coder= calls here:
                     #CODE... 
 
