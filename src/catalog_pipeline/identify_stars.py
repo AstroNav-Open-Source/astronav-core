@@ -27,7 +27,7 @@ def query_star_pairs(theta_obs, delta_theta, db_path=DB_PATH, limit=50):
 def angle_between(v1, v2):
     return np.degrees(np.arccos(np.clip(np.dot(v1, v2), -1, 1)))
 
-def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST, limit=50):
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST_500, limit=50):
      """
      Identify stars based on triangle voting, given detected unit vectors.
 
@@ -110,67 +110,67 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
 from collections import defaultdict
 
 def compute_pyramid(candidate_pyramide, db_path, limit, vi, vj, vk, vd):
-    print(f"DEBUG: Computing pyramid for {candidate_pyramide}")
-    # Get the star indices from the dictionary keys
-    star_indices = list(candidate_pyramide.keys())
-    i, j, k = star_indices[0], star_indices[1], star_indices[2]
-    
-    A = candidate_pyramide[i]  # HIP for star i
-    B = candidate_pyramide[j]  # HIP for star j
-    C = candidate_pyramide[k]  # HIP for star k
+     print(f"DEBUG: Computing pyramid for {candidate_pyramide}")
+     # Get the star indices from the dictionary keys
+     star_indices = list(candidate_pyramide.keys())
+     i, j, k = star_indices[0], star_indices[1], star_indices[2]
 
-    # --- Step 1: angles ---
-    d_i = angle_between(vd, vi)
-    d_j = angle_between(vd, vj)
-    d_k = angle_between(vd, vk)
-    angle_tolerance = 0.5
-    limit = 500
-    # --- Step 2: queries ---
-    matches_di = query_star_pairs(d_i, angle_tolerance, db_path=db_path, limit=limit)
-    matches_dj = query_star_pairs(d_j, angle_tolerance, db_path=db_path, limit=limit)
-    matches_dk = query_star_pairs(d_k, angle_tolerance, db_path=db_path, limit=limit)
+     A = candidate_pyramide[i]  # HIP for star i
+     B = candidate_pyramide[j]  # HIP for star j
+     C = candidate_pyramide[k]  # HIP for star k
 
-    print(f"DEBUG: Found {len(matches_di)}, {len(matches_dj)}, {len(matches_dk)} matches for angles")
+     # --- Step 1: angles ---
+     d_i = angle_between(vd, vi)
+     d_j = angle_between(vd, vj)
+     d_k = angle_between(vd, vk)
+     angle_tolerance = 0.5
+     limit = 500
+     # --- Step 2: queries ---
+     matches_di = query_star_pairs(d_i, angle_tolerance, db_path=db_path, limit=limit)
+     matches_dj = query_star_pairs(d_j, angle_tolerance, db_path=db_path, limit=limit)
+     matches_dk = query_star_pairs(d_k, angle_tolerance, db_path=db_path, limit=limit)
 
-    if not matches_di or not matches_dj or not matches_dk:
-        print(f"DEBUG: Skipping pyramid due to missing matches")
-        return
+     print(f"DEBUG: Found {len(matches_di)}, {len(matches_dj)}, {len(matches_dk)} matches for angles")
 
-    # --- Step 3: build neighbor map ---
-    neighbors = defaultdict(set)
+     if not matches_di or not matches_dj or not matches_dk:
+          print(f"DEBUG: Skipping pyramid due to missing matches")
+          return
 
-    # d–i leg
-    for u, v, _ in matches_di:
-        if u == A:
-            neighbors[A].add(v)
-        elif v == A:
-            neighbors[A].add(u)
+     # --- Step 3: build neighbor map ---
+     neighbors = defaultdict(set)
 
-    # d–j leg
-    for u, v, _ in matches_dj:
-        if u == B:
-            neighbors[B].add(v)
-        elif v == B:
-            neighbors[B].add(u)
+     # d–i leg
+     for u, v, _ in matches_di:
+          if u == A:
+               neighbors[A].add(v)
+          elif v == A:
+               neighbors[A].add(u)
 
-    # d–k leg
-    for u, v, _ in matches_dk:
-        if u == C:
-            neighbors[C].add(v)
-        elif v == C:
-            neighbors[C].add(u)
+     # d–j leg
+     for u, v, _ in matches_dj:
+          if u == B:
+               neighbors[B].add(v)
+          elif v == B:
+               neighbors[B].add(u)
 
-    print(f"DEBUG neighbors map: {dict(neighbors)}")
+     # d–k leg
+     for u, v, _ in matches_dk:
+          if u == C:
+               neighbors[C].add(v)
+          elif v == C:
+               neighbors[C].add(u)
 
-    # --- Step 4: intersect candidate Ds ---
-    common_d = neighbors[A] & neighbors[B] & neighbors[C]
+     print(f"DEBUG neighbors map: {dict(neighbors)}")
 
-    if not common_d:
-        print("DEBUG: No consistent catalog apex D found")
-        return
+     # --- Step 4: intersect candidate Ds ---
+     common_d = neighbors[A] & neighbors[B] & neighbors[C]
 
-    for D in common_d:
-        print(f"DEBUG: Pyramid confirmed → base ({A}, {B}, {C}), apex {D}")
+     if not common_d:
+          print("DEBUG: No consistent catalog apex D found")
+          return
+
+     for D in common_d:
+          print(f"DEBUG: Pyramid confirmed → base ({A}, {B}, {C}), apex {D}")
 
 
 def visualize_star_identification(image_path, star_data, matches, title="Star Identification Results"):
