@@ -28,7 +28,7 @@ def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
                print(f"Calibrating: SYS:{sys_cal} , GYRO: {gyro_cal} , ACCL: {accel_cal} MAG: {mag_cal}")
                time.sleep(1)
 
-     quaternion_star, rotation_matrix = star_processing.process_star_image(use_camera=use_camera, visualize=True)
+     quaternion_star, rotation_matrix = star_processing.process_star_image(use_camera=use_camera, visualize=False)
      print(f"Time taken: {time.time() - timer} seconds")
      if quaternion_star is not None and rotation_matrix is not None:
           print("Processing complete!")
@@ -45,7 +45,7 @@ def main(use_camera=False, image_path=DEFAULT_IMAGE_PATH):
                     from quaternion_calculations import quat2dict
                     Q_STAR_REF = quat2dict(quaternion_star)
                     Q_IMU_REF  = get_latest_quaterlion()   
-
+ 
                     publisher = OrientationPublisher(mac_ip=MAC_IP, mac_port=MAC_PORT)
                     while True:
                          Q_IMU_CURR = get_latest_quaterlion()  

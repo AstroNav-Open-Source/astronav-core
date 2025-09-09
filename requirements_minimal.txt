@@ -1,0 +1,19 @@
+# Core scientific computing
+numpy>=1.20.0
+scipy>=1.7.0
+
+# Computer vision and image processing
+opencv-python>=4.5.0
+matplotlib>=3.5.0
+
+# Astronomy
+astropy>=5.0.0
+
+# YOLO object detection
+ultralytics>=8.0.0
+
+# Optional: For Raspberry Pi camera (only needed on Pi)
+# picamera2>=0.3.0
+
+# Optional: For advanced image processing (if needed)
+# scikit-image>=0.19.0

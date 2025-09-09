@@ -2,7 +2,7 @@ from pathlib import Path
 from catalog_pipeline.real_image_valuation import lost_in_space
 from image_pipeline.capture_star_vectors import visualize_results
 from typing import Optional
-DEFAULT_IMAGE_PATH = Path(__file__).parent / "image_pipeline" / "starfield.png"
+DEFAULT_IMAGE_PATH = Path(__file__).parent / "photos" / "5star_pairs_center.jpeg"
 
 def capture_image():
     try:

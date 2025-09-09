@@ -1,3 +1,5 @@
+from collections import defaultdict
+import itertools
 import numpy as np
 import sqlite3
 import bisect
@@ -10,28 +12,6 @@ DB_PATH_TEST = os.path.join(os.path.dirname(__file__), 'star_catalog_small_test.
 DB_PATH_TEST_500 = os.path.join(os.path.dirname(__file__), 'star_catalog_small_test_500_stars.db')
 EARLY_SUBGRAPH_STAR_EXIT = 10000
 
-# def get_all_angles(db_path=DB_PATH):
-#     conn = sqlite3.connect(db_path)
-#     c = conn.cursor()
-#     c.execute('SELECT angle FROM pairs ORDER BY angle ASC')
-#     angles = [row[0] for row in c.fetchall()]
-#     conn.close()
-#     return np.array(angles)
-
-# def build_kvector(angles):
-#     # K-vector: for each angle, K[i] = number of angles <= angles[i]
-#     # For a sorted array, K[i] = i
-#     return np.arange(len(angles))
-
-# def kvector_lookup(angles, K, theta_obs, delta_theta):
-#     """Find index range in angles within [theta_obs - delta_theta, theta_obs + delta_theta] 
-#     using K-vector (binary search)."""
-#     theta_min = theta_obs - delta_theta
-#     theta_max = theta_obs + delta_theta
-#     # Use bisect to find indices
-#     lower_idx = bisect.bisect_left(angles, theta_min)
-#     upper_idx = bisect.bisect_right(angles, theta_max) - 1
-#     return lower_idx, upper_idx
 
 def query_star_pairs(theta_obs, delta_theta, db_path=DB_PATH, limit=50):
     """Query star pairs in the database within the given angle range, ordered by closeness to theta_obs."""
@@ -47,9 +27,7 @@ def query_star_pairs(theta_obs, delta_theta, db_path=DB_PATH, limit=50):
 def angle_between(v1, v2):
     return np.degrees(np.arccos(np.clip(np.dot(v1, v2), -1, 1)))
 
-def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST, limit=20):
-     from collections import defaultdict
-     import itertools
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST, limit=50):
      """
      Identify stars based on triangle voting, given detected unit vectors.
 
@@ -61,6 +39,7 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
      Returns:
      - final_votes: dict {detected_star_idx: (HIP_id, vote_score)}
      """
+     from collections import defaultdict
      n = len(detected_vectors)
      votes = defaultdict(lambda: defaultdict(float))
      epsilon = 1e-5
@@ -75,13 +54,14 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
      triplet_count = 0
      for (i, j, k) in itertools.combinations(range(n), 3):
           triplet_count += 1
-          vi, vj, vk = detected_vectors[i], detected_vectors[j], detected_vectors[k]
+          vi, vj, vk, = detected_vectors[i], detected_vectors[j], detected_vectors[k]
+          d = next(x for x in range(n) if x not in (i, j, k))  # the first unused index
+          vd = detected_vectors[d]
 
           # Compute triangle side lengths
           a = angle_between(vi, vj)
           b = angle_between(vj, vk)
           c = angle_between(vk, vi)
-          triplet_descriptor = tuple(sorted([a, b, c]))
 
           print(f"DEBUG: Triplet {triplet_count}: stars ({i},{j},{k}), angles: {a:.2f}, {b:.2f}, {c:.2f}")
 
@@ -95,99 +75,102 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
           if not matches_ab or not matches_bc or not matches_ca:
                print(f"DEBUG: Skipping triplet due to missing matches")
                continue
+          valid_triangles_found_for_image = 0  # reset per (i,j,k)
 
-          # Brute-force match catalog triangles by checking all combos
-          valid_triangles = 0
-          for (hipA1, hipB1, angle_ab) in matches_ab:
-               print(f"DEBUG: Testing triangle consistency for triplet ({i},{j},{k})")
-               for (hipB2, hipC1, angle_bc) in matches_bc:
-                    for (hipC2, hipA2, angle_ca) in matches_ca:
-                         # Try to find a consistent triangle by checking all possible star assignments
-                         # We need to find three unique stars that form a triangle
-                         possible_triangles = []
-                         
-                         # Take all 6 HIPs involved in the 3 pair matches
-                         candidates = [hipA1, hipB1, hipB2, hipC1, hipC2, hipA2]
-                         unique_hips = list(set(candidates))
-                         
-                         # Try every 3-star combination
-                         triangle_combinations = list(itertools.combinations(unique_hips, 3))
-                         # print(f"  Testing {len(triangle_combinations)} triangle combinations")
-                         
-                         for triangle in triangle_combinations:
-                              # print(f"    Testing triangle: {triangle}")
-                              # Check if triangle made from these HIPs matches observed triangle angles
-                              try:
-                                   # Get vectors from catalog for this triangle
-                                   v1 = get_catalog_vector(triangle[0], db_path=db_path)
-                                   v2 = get_catalog_vector(triangle[1], db_path=db_path)
-                                   v3 = get_catalog_vector(triangle[2], db_path=db_path)
-                                   
-                                   # Calculate actual angles for this triangle
-                                   a1 = angle_between(v1, v2)
-                                   a2 = angle_between(v2, v3)
-                                   a3 = angle_between(v3, v1)
-                                   catalog_angles = sorted([a1, a2, a3])
-                                   
-                                   # print(f"      Catalog angles: {[f'{x:.3f}' for x in catalog_angles]}")
-                                   # print(f"      Observed angles: {[f'{x:.3f}' for x in triplet_descriptor]}")
-                                   
-                                   # Compare with observed triplet angles
-                                   residual = sum([abs(x - y) for x, y in zip(triplet_descriptor, catalog_angles)])
-                                   # print(f"      Residual: {residual:.3f}° (threshold: {angle_tolerance * 3:.3f}°)")
-                                   
-                                   # Check if this triangle is good enough
-                                   if residual <= angle_tolerance * 3:
-                                        possible_triangles.append((triangle, residual))
-                                        print(f"      ✅ ACCEPTED: triangle {triangle} with residual {residual:.3f}")
-                                   # else:
-                                        # print(f"      ❌ REJECTED: residual {residual:.3f} > threshold {angle_tolerance * 3:.3f}")
-                                       
-                              except Exception as e:
-                                   # Skip if we can't get catalog vectors for this triangle
-                                   print(f"      ❌ ERROR: Failed to get vectors for {triangle}: {e}")
-                                   continue
-                         
-                         if not possible_triangles:
-                              continue
-                         
-                         # Use the best triangle (lowest residual)
-                         best_triangle, best_residual = min(possible_triangles, key=lambda x: x[1])
-                         hipA1, hipB1, hipC1 = best_triangle
-                         residual = best_residual
-                         
-                         valid_triangles += 1
-                         print(f"DEBUG: Valid triangle found: HIPs {hipA1}, {hipB1}, {hipC1}, residual: {residual:.3f}")
-                         
-                         # Vote for each permutation of mapping i,j,k → hipA1,hipB1,hipC1
-                         for perm in itertools.permutations([(i, hipA1), (j, hipB1), (k, hipC1)]):
-                              # Vote weighted by inverse residual
-                              for (di, hi) in perm:
-                                   votes[di][hi] += 1.0 / (residual + epsilon)
-                         
-                         print(f"DEBUG: Added votes for triangle {best_triangle} with residual {residual:.3f}")
-                         
-                         # Early exit if we have enough triangles
-                         if valid_triangles >= 2: break
-                    # Early exit from middle loop
-                    if valid_triangles >= 2: break
-               # Early exit from outer loop
-               if valid_triangles >= 2: break
+          # Build a quick "neighbors" map for BC that works regardless of pair order.
+          # For every (u, v) in matches_bc, add v as a neighbor of u AND u as a neighbor of v.
+          from collections import defaultdict
+          ab_neighbors = defaultdict(set)
+          bc_neighbors = defaultdict(set)
+          for u, v, _ in matches_ab:
+               ab_neighbors[u].add(v) #104185 → {96275, 113084, 96757}, 96275  → {104185}, 113084 → {104185}
+               ab_neighbors[v].add(u) # a single star can have multiple neighbors that fall within the tolerances of the angle_tolerance definition
 
-     print(f"DEBUG: Found {valid_triangles} valid catalog triangles for this detected triplet")
+          for u, v, _ in matches_bc:
+               bc_neighbors[u].add(v)
+               bc_neighbors[v].add(u)
 
-     print(f"DEBUG: Vote accumulation complete. Processing {len(votes)} detected stars with votes")
+          ca_pairs = {frozenset((u, v)) for u, v, _ in matches_ca}
+          
+          for u, v, _ in matches_ab:
+               for (A, B) in ((u, v), (v, u)):  # try both orientations
+                    if B not in bc_neighbors:
+                         continue
+                    for C in bc_neighbors[B]:
+                         if frozenset((C, A)) in ca_pairs:
+                              print(f"DEBUG: Consistent catalog triangle found: ({A}, {B}, {C})")
+                              candidate_pyramide = { 
+                                   i: A, j: B, k: C
+                              }
+                              valid_triangles_found_for_image += 1
+                              compute_pyramid(candidate_pyramide, db_path, limit, vi, vj, vk, vd)
+     print(f"DEBUG: Triplet {triplet_count} found for the image")
 
-     # Final selection: HIP with highest votes per detected index
-     final_votes = {}
-     for i in votes:
-          if votes[i]:
-               hip, score = max(votes[i].items(), key=lambda x: x[1])
-               final_votes[i] = (hip, score)
-               print(f"DEBUG: Detected star {i} -> HIP {hip} with score {score:.3f}")
 
-     print(f"DEBUG: Final triplet matches: {len(final_votes)} stars identified")
-     return final_votes
+from collections import defaultdict
+
+def compute_pyramid(candidate_pyramide, db_path, limit, vi, vj, vk, vd):
+    print(f"DEBUG: Computing pyramid for {candidate_pyramide}")
+    # Get the star indices from the dictionary keys
+    star_indices = list(candidate_pyramide.keys())
+    i, j, k = star_indices[0], star_indices[1], star_indices[2]
+    
+    A = candidate_pyramide[i]  # HIP for star i
+    B = candidate_pyramide[j]  # HIP for star j
+    C = candidate_pyramide[k]  # HIP for star k
+
+    # --- Step 1: angles ---
+    d_i = angle_between(vd, vi)
+    d_j = angle_between(vd, vj)
+    d_k = angle_between(vd, vk)
+    angle_tolerance = 0.5
+    limit = 500
+    # --- Step 2: queries ---
+    matches_di = query_star_pairs(d_i, angle_tolerance, db_path=db_path, limit=limit)
+    matches_dj = query_star_pairs(d_j, angle_tolerance, db_path=db_path, limit=limit)
+    matches_dk = query_star_pairs(d_k, angle_tolerance, db_path=db_path, limit=limit)
+
+    print(f"DEBUG: Found {len(matches_di)}, {len(matches_dj)}, {len(matches_dk)} matches for angles")
+
+    if not matches_di or not matches_dj or not matches_dk:
+        print(f"DEBUG: Skipping pyramid due to missing matches")
+        return
+
+    # --- Step 3: build neighbor map ---
+    neighbors = defaultdict(set)
+
+    # d–i leg
+    for u, v, _ in matches_di:
+        if u == A:
+            neighbors[A].add(v)
+        elif v == A:
+            neighbors[A].add(u)
+
+    # d–j leg
+    for u, v, _ in matches_dj:
+        if u == B:
+            neighbors[B].add(v)
+        elif v == B:
+            neighbors[B].add(u)
+
+    # d–k leg
+    for u, v, _ in matches_dk:
+        if u == C:
+            neighbors[C].add(v)
+        elif v == C:
+            neighbors[C].add(u)
+
+    print(f"DEBUG neighbors map: {dict(neighbors)}")
+
+    # --- Step 4: intersect candidate Ds ---
+    common_d = neighbors[A] & neighbors[B] & neighbors[C]
+
+    if not common_d:
+        print("DEBUG: No consistent catalog apex D found")
+        return
+
+    for D in common_d:
+        print(f"DEBUG: Pyramid confirmed → base ({A}, {B}, {C}), apex {D}")
 
 
 def visualize_star_identification(image_path, star_data, matches, title="Star Identification Results"):
