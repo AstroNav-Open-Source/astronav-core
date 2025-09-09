@@ -145,21 +145,27 @@ def compute_pyramid(candidate_pyramide, db_path, limit, vi, vj, vk, vd):
                neighbors[A].add(v)
           elif v == A:
                neighbors[A].add(u)
-
+     if not neighbors[A]:
+          print("DEBUG: No neighbors found for star A")
+          return
      # d–j leg
      for u, v, _ in matches_dj:
           if u == B:
                neighbors[B].add(v)
           elif v == B:
                neighbors[B].add(u)
-
+     if not neighbors[B]:
+          print("DEBUG: No neighbors found for star B")
+          return
      # d–k leg
      for u, v, _ in matches_dk:
           if u == C:
                neighbors[C].add(v)
           elif v == C:
                neighbors[C].add(u)
-
+     if not neighbors[C]:
+          print("DEBUG: No neighbors found for star C")
+          return
      print(f"DEBUG neighbors map: {dict(neighbors)}")
 
      # --- Step 4: intersect candidate Ds ---
