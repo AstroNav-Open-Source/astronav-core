@@ -30,7 +30,7 @@ def angle_between(v1, v2):
 from collections import defaultdict
 import itertools
 
-def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH, limit=50):
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST_500, limit=50):
      """
      Identify stars based on triangle+pyramid voting.
      
@@ -53,7 +53,7 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
      print(f"DEBUG: Using database: {db_path}")
 
      # Global support: obs_idx -> {hip_id: score}
-     support = defaultdict(lambda: defaultdict(lambda: -math.inf))
+     support = defaultdict(lambda: defaultdict(float))
 
      triplet_count = 0
      for (i, j, k) in itertools.combinations(range(n), 3):
@@ -105,20 +105,16 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
                                    continue
                               for mapping in pyramids:
                                    obs_vectors = {idx: detected_vectors[idx] for idx in mapping.keys()}
-                                   per_star_log, pyr_log = compute_gaussian_logscore(mapping, obs_vectors, db_path, sigma=0.5)
-
+                                   star_scores = compute_rms_scores(mapping, obs_vectors, db_path)
                                    for obs_idx, hip in mapping.items():
-                                        # weight each star by its own edges + global pyramid strength
-                                        contrib = per_star_log[obs_idx] + 0.5 * pyr_log
-                                        support[obs_idx][hip] = logsumexp(support[obs_idx][hip], contrib)
-                                   
+                                        support[obs_idx][hip] += star_scores[obs_idx]
+     
      final_votes = {}
-     for obs_idx, hip_logs in support.items():
-          maxlog = max(hip_logs.values())
-          ranked = [(hip, math.exp(logv - maxlog))   # relative scores in [0,1]
-                    for hip, logv in sorted(hip_logs.items(), key=lambda kv: -kv[1])]
-          final_votes[obs_idx] = ranked
-          print(f"DEBUG: Obs {obs_idx} candidates: {ranked}")
+     for obs_idx, hip_scores in support.items():
+          if hip_scores:  # Only process if there are scores
+               ranked = sorted(hip_scores.items(), key=lambda x: -x[1])
+               final_votes[obs_idx] = ranked
+               print(f"DEBUG: Obs {obs_idx} candidates: {ranked}")
      
      return final_votes
 
@@ -169,9 +165,7 @@ def compute_gaussian_logscore(mapping, obs_vectors, db_path, sigma=0.2):
 
     return per_star_log, pyr_log
 
-
-
-def compute_residual_scores(mapping, obs_vectors, db_path, epsilon=1e-2):
+def compute_rms_scores(mapping, obs_vectors, db_path, epsilon=1e-2):
      """
      Compute per-star residual-based scores for a candidate pyramid.
 
@@ -219,8 +213,6 @@ def compute_residual_scores(mapping, obs_vectors, db_path, epsilon=1e-2):
           star_score[obs_idx] = 1.0 / (rms + epsilon)
 
      return star_score
-
-
 
 def compute_pyramid(candidate_pyramide, db_path, limit, seen_pyramids, vi, vj, vk, vd, d, angle_tolerance=0.5):
      """
