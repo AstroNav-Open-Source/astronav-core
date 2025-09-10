@@ -4,7 +4,7 @@ import numpy as np
 import sqlite3
 import bisect
 import os
-from .db_operations import get_catalog_vector, get_star_info
+from .db_operations import get_angular_distance_between_stars, get_catalog_vector, get_star_info
 from scipy.optimize import linear_sum_assignment  # Added for Hungarian algorithm
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'star_catalog.db')
@@ -30,7 +30,7 @@ def angle_between(v1, v2):
 from collections import defaultdict
 import itertools
 
-def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST_500, limit=50):
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH, limit=50):
      """
      Identify stars based on triangle+pyramid voting.
      
@@ -45,22 +45,20 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
      n = len(detected_vectors)
      # For debugging, limit number of stars used
      detected_vectors = detected_vectors[:6]
-     n = len(detected_vectors)
+     seen_tris = set()
+     seen_pyramids = set()
      
      print(f"DEBUG: Using {n} detected stars (limited from original)")
      print(f"DEBUG: Processing {n} detected stars for triplet matching")
      print(f"DEBUG: Using database: {db_path}")
 
      # Global support: obs_idx -> {hip_id: score}
-     support = defaultdict(lambda: defaultdict(float))
+     support = defaultdict(lambda: defaultdict(lambda: -math.inf))
 
      triplet_count = 0
      for (i, j, k) in itertools.combinations(range(n), 3):
           triplet_count += 1
           vi, vj, vk = detected_vectors[i], detected_vectors[j], detected_vectors[k]
-          # pick one apex candidate (simplified for now)
-          d = next(x for x in range(n) if x not in (i, j, k))
-          vd = detected_vectors[d]
 
           # Compute triangle side lengths
           a = angle_between(vi, vj)
@@ -93,28 +91,138 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
                     for C in bc_neighbors[B]:
                          if frozenset((C, A)) not in ca_pairs:
                               continue
-                         print(f"DEBUG: Consistent catalog triangle found: ({A}, {B}, {C})")
+
+                         tri_key = tuple(sorted((A, B, C)))
+                         if tri_key in seen_tris:
+                              continue
+                         seen_tris.add(tri_key)
+                         print(f"DEBUG: Consistent catalog triangle found: {tri_key}")
                          candidate_pyramid = {i: A, j: B, k: C}
-                         pyramids = compute_pyramid(candidate_pyramid, db_path, limit, vi, vj, vk, vd, d)
-                         if pyramids:
+                         for d in [x for x in range(n) if x not in (i, j, k)]:
+                              vd = detected_vectors[d]
+                              pyramids = compute_pyramid(candidate_pyramid, db_path, limit, seen_pyramids, vi, vj, vk, vd, d)
+                              if not pyramids:
+                                   continue
                               for mapping in pyramids:
-                                   # Update global support for each obs_idx→HIP
+                                   obs_vectors = {idx: detected_vectors[idx] for idx in mapping.keys()}
+                                   per_star_log, pyr_log = compute_gaussian_logscore(mapping, obs_vectors, db_path, sigma=0.5)
+
                                    for obs_idx, hip in mapping.items():
-                                        support[obs_idx][hip] += 1.0  # simple +1 vote; can weight by residual later
-
-     print(f"DEBUG: Processed {triplet_count} triplets")
-
-     # Build final ranked votes
+                                        # weight each star by its own edges + global pyramid strength
+                                        contrib = per_star_log[obs_idx] + 0.5 * pyr_log
+                                        support[obs_idx][hip] = logsumexp(support[obs_idx][hip], contrib)
+                                   
      final_votes = {}
-     for obs_idx, hip_scores in support.items():
-          ranked = sorted(hip_scores.items(), key=lambda x: -x[1])
+     for obs_idx, hip_logs in support.items():
+          maxlog = max(hip_logs.values())
+          ranked = [(hip, math.exp(logv - maxlog))   # relative scores in [0,1]
+                    for hip, logv in sorted(hip_logs.items(), key=lambda kv: -kv[1])]
           final_votes[obs_idx] = ranked
           print(f"DEBUG: Obs {obs_idx} candidates: {ranked}")
-
+     
      return final_votes
 
+import math
 
-def compute_pyramid(candidate_pyramide, db_path, limit, vi, vj, vk, vd, d, angle_tolerance=0.5):
+def logsumexp(a, b):
+     if a == -math.inf: return b
+     if b == -math.inf: return a
+     m = a if a > b else b
+     return m + math.log1p(math.exp(-abs(a - b)))
+
+def compute_gaussian_logscore(mapping, obs_vectors, db_path, sigma=0.2):
+    """
+    Compute per-star and total log-likelihood scores for a candidate pyramid.
+
+    Args:
+        mapping: dict {obs_idx: hip_id}
+        obs_vectors: dict {obs_idx: np.array}, observed unit vectors
+        db_path: path to catalog database
+        sigma: expected measurement noise (in degrees)
+
+    Returns:
+        per_star_log: dict {obs_idx: log-likelihood sum over its edges}
+        pyr_log: float, total log-likelihood of the pyramid
+    """
+    obs_indices = list(mapping.keys())
+    edge_pairs = [(obs_indices[i], obs_indices[j]) 
+                  for i in range(len(obs_indices)) 
+                  for j in range(i+1, len(obs_indices))]
+
+    per_star_log = {obs_idx: 0.0 for obs_idx in mapping.keys()}
+    pyr_log = 0.0
+    inv_2s2 = 1.0 / (2 * sigma * sigma)
+
+    for (obs_u, obs_v) in edge_pairs:
+        hip_u, hip_v = mapping[obs_u], mapping[obs_v]
+        vu, vv = obs_vectors[obs_u], obs_vectors[obs_v]
+
+        meas_angle = angle_between(vu, vv)   # degrees
+        cat_angle  = get_angular_distance_between_stars(hip_u, hip_v, db_path=db_path)
+
+        delta = meas_angle - cat_angle
+        ll = -(delta * delta) * inv_2s2   # log-likelihood contribution
+
+        pyr_log += ll
+        per_star_log[obs_u] += ll
+        per_star_log[obs_v] += ll
+
+    return per_star_log, pyr_log
+
+
+
+def compute_residual_scores(mapping, obs_vectors, db_path, epsilon=1e-2):
+     """
+     Compute per-star residual-based scores for a candidate pyramid.
+
+     Args:
+          mapping: dict {obs_idx: hip_id}, e.g. {0: 34444, 1: 39863, 2: 35264, 3: 45270}
+          obs_vectors: dict {obs_idx: np.array}, observed unit vectors for each index
+          db_path: path to catalog database (must have star pairs with HIPs + angle)
+          epsilon: small term to avoid division by zero
+
+     Returns:
+          star_score: dict {obs_idx: score} with accumulated edge weights
+     """
+     residuals = {obs_idx: [] for obs_idx in mapping.keys()}
+     obs_indices = list(mapping.keys())
+
+     # Step 1. Build all edges (pairs of observed indices)
+     edge_pairs = [(obs_indices[i], obs_indices[j]) 
+                    for i in range(len(obs_indices)) 
+                    for j in range(i+1, len(obs_indices))]
+
+     for (obs_u, obs_v) in edge_pairs:
+          hip_u, hip_v = mapping[obs_u], mapping[obs_v]
+
+          # --- measured angle
+          vu, vv = obs_vectors[obs_u], obs_vectors[obs_v]
+          meas_angle = angle_between(vu, vv)  # in degrees
+
+          # --- catalog angle
+          cat_angle = get_angular_distance_between_stars(hip_u, hip_v, db_path=db_path)
+          # query_catalog_angle should return precomputed HIP→HIP angular separation in degrees
+
+          # --- residual and weight
+          residual = abs(meas_angle - cat_angle)
+          # --- append residual to both stars
+          residuals[obs_u].append(residual)
+          residuals[obs_v].append(residual)
+
+     # Convert residual lists → RMS → score
+     star_score = {}
+     for obs_idx, res_list in residuals.items():
+          if not res_list:
+               star_score[obs_idx] = 0.0
+               continue
+          rms = (sum(r**2 for r in res_list) / len(res_list))**0.5
+          star_score[obs_idx] = 1.0 / (rms + epsilon)
+
+     return star_score
+
+
+
+def compute_pyramid(candidate_pyramide, db_path, limit, seen_pyramids, vi, vj, vk, vd, d, angle_tolerance=0.5):
      """
      Try to confirm pyramid and return candidate mappings {obs_idx: HIP}.
      """
@@ -141,14 +249,19 @@ def compute_pyramid(candidate_pyramide, db_path, limit, vi, vj, vk, vd, d, angle
      for u, v, _ in matches_di:
           if u == A: neighbors[A].add(v)
           elif v == A: neighbors[A].add(u)
+     if not neighbors[A]:
+          return None
+
      for u, v, _ in matches_dj:
           if u == B: neighbors[B].add(v)
           elif v == B: neighbors[B].add(u)
+     if not neighbors[B]:
+          return None
+
      for u, v, _ in matches_dk:
           if u == C: neighbors[C].add(v)
           elif v == C: neighbors[C].add(u)
-
-     if not neighbors[A] or not neighbors[B] or not neighbors[C]:
+     if not neighbors[C]:
           print("DEBUG: No neighbors found for one or more base stars")
           return None
 
@@ -159,6 +272,11 @@ def compute_pyramid(candidate_pyramide, db_path, limit, vi, vj, vk, vd, d, angle
 
      results = []
      for D in common_d:
+          pyr_key = tuple(sorted((A,B,C,D)))  # order-independent key
+          if pyr_key in seen_pyramids:
+               continue
+          seen_pyramids.add(pyr_key)
+
           print(f"DEBUG: ✅ Pyramid confirmed → base ({A}, {B}, {C}), apex {D}")
           mapping = {**candidate_pyramide, d: D}
           results.append(mapping)
@@ -168,97 +286,106 @@ def compute_pyramid(candidate_pyramide, db_path, limit, vi, vj, vk, vd, d, angle
 
 
 def visualize_star_identification(image_path, star_data, matches, title="Star Identification Results"):
-    """
-    Visualize star identification results overlaid on the original image.
-    
-    Args:
-        image_path: Path to the original image
-        star_data: List of detected star data from detect_stars()
-        matches: Dictionary of identification results from identify_stars_from_vector()
-        title: Title for the plot
-    """
-    import matplotlib.pyplot as plt
-    import cv2
-    from collections import Counter
-    
-    # Read and display the image
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    
-    plt.figure(figsize=(15, 10))
-    plt.imshow(img, cmap='gray', origin='upper')
-    plt.title(title)
-    
-    # Overlay star identifications
-    for i, star in enumerate(star_data):
-        pos_x, pos_y = star["position"]
-        intensity = star["intensity"]
-        
-        if i in matches:
-            hip_id, confidence = matches[i]
-            # Identified stars - green circle with HIP ID and confidence
-            plt.scatter(pos_x, pos_y, c='green', s=100, marker='o', alpha=0.7)
-            plt.annotate(f'★{i}\nHIP {hip_id}\n{confidence:.1f}', 
-                        (pos_x, pos_y), 
-                        xytext=(10, 10), textcoords='offset points',
-                        bbox=dict(boxstyle='round,pad=0.3', facecolor='green', alpha=0.7),
-                        fontsize=8, color='white', weight='bold')
-        else:
-            # Unidentified stars - red circle with star index
-            plt.scatter(pos_x, pos_y, c='red', s=80, marker='x', alpha=0.7)
-            plt.annotate(f'{i}\nI={intensity:.0f}', 
-                        (pos_x, pos_y), 
-                        xytext=(10, -20), textcoords='offset points',
-                        bbox=dict(boxstyle='round,pad=0.3', facecolor='red', alpha=0.7),
-                        fontsize=8, color='white')
-    
-    # Add legend
-    from matplotlib.patches import Patch
-    legend_elements = [
-        Patch(facecolor='green', alpha=0.7, label=f'Identified ({len(matches)} stars)'),
-        Patch(facecolor='red', alpha=0.7, label=f'Unidentified ({len(star_data) - len(matches)} stars)')
-    ]
-    plt.legend(handles=legend_elements, loc='upper right')
-    
-    # Add summary text
-    identified_hips = [matches[i][0] for i in matches.keys()]
-    unique_hips = set(identified_hips)
-    
-    summary_text = f"""Detection Summary:
-Total Stars: {len(star_data)}
-Identified: {len(matches)}
-Unique HIPs: {len(unique_hips)}
-HIP IDs: {sorted(unique_hips)}"""
-    
-    plt.text(0.02, 0.98, summary_text, transform=plt.gca().transAxes, 
-            verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8),
-            fontsize=10)
-    
-    # Check for and display warnings
-    warnings = []
-    if len(identified_hips) != len(unique_hips):
-        warnings.append("⚠️ Duplicate HIP assignments!")
-        hip_counts = Counter(identified_hips)
-        for hip, count in hip_counts.items():
-            if count > 1:
-                duplicate_stars = [i for i, (h, _) in matches.items() if h == hip]
-                warnings.append(f"HIP {hip} → stars {duplicate_stars}")
-    
-    if matches:
-        confidences = [confidence for _, confidence in matches.values()]
-        unique_confidences = set(confidences)
-        if len(unique_confidences) < len(confidences):
-            warnings.append("⚠️ Identical confidence scores!")
-    
-    if warnings:
-        warning_text = "\n".join(warnings)
-        plt.text(0.02, 0.02, warning_text, transform=plt.gca().transAxes, 
-                verticalalignment='bottom', bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.8),
-                fontsize=9, color='red', weight='bold')
-    
-    plt.xlabel('X (pixels)')
-    plt.ylabel('Y (pixels)')
-    plt.tight_layout()
-    plt.show()
+     """
+     Visualize star identification results overlaid on the original image.
+
+     Args:
+          image_path: Path to the original image
+          star_data: List of detected star data from detect_stars()
+          matches: Dictionary of identification results from identify_stars_from_vector()
+          title: Title for the plot
+     """
+     import matplotlib.pyplot as plt
+     import cv2
+     from collections import Counter
+
+     # Read and display the image
+     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+     plt.figure(figsize=(15, 10))
+     plt.imshow(img, cmap='gray', origin='upper')
+     plt.title(title)
+
+     # Overlay star identifications
+     for i, star in enumerate(star_data):
+          pos_x, pos_y = star["position"]
+          intensity = star["intensity"]
+          
+          if i in matches and matches[i]:
+               # Debug: print what we're working with
+               print(f"DEBUG: matches[{i}] = {matches[i]}, type = {type(matches[i])}")
+               # Take the best candidate (first in the ranked list)
+               if isinstance(matches[i], list) and len(matches[i]) > 0:
+                    hip_id, confidence = matches[i][0]
+               else:
+                    # Fallback: if it's not a list, treat it as a single tuple
+                    hip_id, confidence = matches[i]
+               # Identified stars - green circle with HIP ID and confidence
+               plt.scatter(pos_x, pos_y, c='green', s=100, marker='o', alpha=0.7)
+               plt.annotate(f'★{i}\nHIP {hip_id}\n{confidence:.1f}', 
+                         (pos_x, pos_y), 
+                         xytext=(10, 10), textcoords='offset points',
+                         bbox=dict(boxstyle='round,pad=0.3', facecolor='green', alpha=0.7),
+                         fontsize=8, color='white', weight='bold')
+          else:
+               # Unidentified stars - red circle with star index
+               plt.scatter(pos_x, pos_y, c='red', s=80, marker='x', alpha=0.7)
+               plt.annotate(f'{i}\nI={intensity:.0f}', 
+                         (pos_x, pos_y), 
+                         xytext=(10, -20), textcoords='offset points',
+                         bbox=dict(boxstyle='round,pad=0.3', facecolor='red', alpha=0.7),
+                         fontsize=8, color='white')
+
+     # Add legend
+     from matplotlib.patches import Patch
+     legend_elements = [
+          Patch(facecolor='green', alpha=0.7, label=f'Identified ({len(matches)} stars)'),
+          Patch(facecolor='red', alpha=0.7, label=f'Unidentified ({len(star_data) - len(matches)} stars)')
+     ]
+     plt.legend(handles=legend_elements, loc='upper right')
+
+     # Add summary text
+     identified_hips = [matches[i][0][0] for i in matches.keys() if matches[i]]
+     unique_hips = set(identified_hips)
+
+     summary_text = f"""Detection Summary:
+     Total Stars: {len(star_data)}
+     Identified: {len(matches)}
+     Unique HIPs: {len(unique_hips)}
+     HIP IDs: {sorted(unique_hips)}"""
+
+     plt.text(0.02, 0.98, summary_text, transform=plt.gca().transAxes, 
+               verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8),
+               fontsize=10)
+
+     # Check for and display warnings
+     warnings = []
+     if len(identified_hips) != len(unique_hips):
+          warnings.append("⚠️ Duplicate HIP assignments!")
+          hip_counts = Counter(identified_hips)
+          for hip, count in hip_counts.items():
+               if count > 1:
+                    duplicate_stars = [i for i, match_list in matches.items() 
+                                   if match_list and match_list[0][0] == hip]
+                    warnings.append(f"HIP {hip} → stars {duplicate_stars}")
+
+     if matches:
+          confidences = [confidence for match_list in matches.values() 
+                         for _, confidence in match_list]
+          unique_confidences = set(confidences)
+          if len(unique_confidences) < len(confidences):
+               warnings.append("⚠️ Identical confidence scores!")
+
+     if warnings:
+          warning_text = "\n".join(warnings)
+          plt.text(0.02, 0.02, warning_text, transform=plt.gca().transAxes, 
+                    verticalalignment='bottom', bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.8),
+                    fontsize=9, color='red', weight='bold')
+
+     plt.xlabel('X (pixels)')
+     plt.ylabel('Y (pixels)')
+     plt.tight_layout()
+     plt.show()
 
 
 def deprecated_identify_stars_from_vectors_2_0(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST_500, limit=100):
