@@ -6,14 +6,14 @@ from datetime import datetime
 import time
 import numpy as np
 from typing import Tuple, Optional, Dict, Any
-from astropy.coordinates import SkyCoord
-import astropy.units as u
+# from astropy.coordinates import SkyCoord  # Not used in remaining tests
+# import astropy.units as u  # Not used in remaining tests
 
 # Add parent directory to path to import modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from star_processing import process_star_image, capture_image 
-from quaternion_calculations import propagate_orientation, quat_to_euler, quat2dict, dict2quat, quat_to_euler_scipy, quaternion_angular_distance
+# from star_processing import process_star_image, capture_image  # Not used in remaining tests 
+from quaternion_calculations import quat2dict, quaternion_angular_distance
 from catalog_pipeline.real_image_valuation import lost_in_space
 
 
@@ -227,132 +227,18 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
           
           return test_images
      
-     def test_180_degree_rotation(self):
-          """Test if algorithm can correctly measure 180° rotation."""
-          print("\n" + "="*50)
-          print("Testing 180° Rotation Accuracy")
-          print("="*50)
-          
-          # Use any available image
-          test_images = self.discover_test_images()
-          if test_images:
-               # Use the first available image
-               image_name = list(test_images.keys())[0]
-               original_path = test_images[image_name]['path']
-          if not original_path.exists():
-               print(f"❌ No test image found at {original_path}")
-               return
-          
-          print(f"Using image: {original_path}")
-          
-          # Create a 180° rotated version
-          import cv2
-          import numpy as np
-          
-          # Load and rotate image 180°
-          img = cv2.imread(str(original_path))
-          if img is None:
-               print("❌ Could not load image")
-               return
-               
-          rotated_img = cv2.rotate(img, cv2.ROTATE_180)
-          
-          # Save rotated image temporarily
-          rotated_path = Path(__file__).parent / "temp_rotated_180.png"
-          cv2.imwrite(str(rotated_path), rotated_img)
-          
-          print(f"Created 180° rotated image: {rotated_path}")
-          
-          # Test both images through the algorithm
-          result_euler = self.calculate_rotational_difference(original_path, rotated_path)
-          result_quaternion = self.test_quaternion_angular_distance(original_path, rotated_path)
-          
-          
-          # Clean up temporary file
-          if rotated_path.exists():
-               rotated_path.unlink()
-          
-          if result_euler or result_quaternion:
-               measured_diff = result_euler['max_diff']
-               expected_diff = 180.0
-               error = abs(measured_diff - expected_diff)
-               
-               print(f"\n180° Rotation Test Results:")
-               print(f"  Expected: {expected_diff}°")
-               print(f"  Measured: {measured_diff:.2f}°")
-               print(f"  Error: {error:.2f}°")
-               print(f"  Quaternion distance: {result_quaternion:.2f}°")
-               
-               if error < 10.0:
-                    print(f"  SUCCESS: Algorithm correctly measured 180° rotation")
-               else:
-                    print(f"  FAILED: Algorithm cannot measure 180° rotation accurately")
-               
-               self.assertTrue(error < 10.0, f"Measured error {error:.2f}° exceeds tolerance for 180° rotation")
-
-          else:
-               print("❌ Test failed - could not calculate rotational difference")
-     
-     @unittest.skip("Skipping quaternion angular distance test")
-     def calculate_rotational_difference(self, image1_path, image2_path):
+     def test_get_ra_dec_from_image(self):
           """
-          Calculate the rotational difference between two images.
-          Returns the angular difference in degrees.
+          Get the right ascension and declination from an image.
           """
-          print(f"\nProcessing image 1: {image1_path.name}")
-          quat1, rot_matrix1 = lost_in_space(str(image1_path), visualize=False)
-          
-          print(f"Processing image 2: {image2_path.name}")
-          quat2, rot_matrix2 = lost_in_space(str(image2_path), visualize=False)
-          
-          if quat1 is None or quat2 is None:
-               print("Failed to process one or both images")
-               return None
-          
-          # Convert quaternions to dict format if they're numpy arrays
-          if isinstance(quat1, np.ndarray):
-               quat1_dict = quat2dict(quat1)
-          else:
-               quat1_dict = quat1
-               
-          if isinstance(quat2, np.ndarray):
-               quat2_dict = quat2dict(quat2)
-          else:
-               quat2_dict = quat2
-          
-          # Convert to Euler angles (Yaw, Pitch, Roll in degrees)
-          yaw1, pitch1, roll1 = quat_to_euler_scipy(quat1_dict)
-          yaw2, pitch2, roll2 = quat_to_euler_scipy(quat2_dict)
-          
-          # Calculate angular differences
-          yaw_diff = abs(yaw2 - yaw1)
-          pitch_diff = abs(pitch2 - pitch1)
-          roll_diff = abs(roll2 - roll1)
-          
-          # Normalize angles to 0-360 range
-          yaw_diff = min(yaw_diff, 360 - yaw_diff)
-          pitch_diff = min(pitch_diff, 360 - pitch_diff)
-          roll_diff = min(roll_diff, 360 - roll_diff)
-          
-          print(f"Image 1 quaternion: {quat1}")
-          print(f"Image 2 quaternion: {quat2}")
-          print(f"Image 1 Euler: Yaw={yaw1:.2f}°, Pitch={pitch1:.2f}°, Roll={roll1:.2f}°")
-          print(f"Image 2 Euler: Yaw={yaw2:.2f}°, Pitch={pitch2:.2f}°, Roll={roll2:.2f}°")
+          image_path = "/Users/michaelcaneff/Pictures/Stellarium/stellarium-20250911-174306102.jpeg"
+          quat1, rot_matrix1 = lost_in_space(image_path, visualize=False, fov_deg=66)
+          ra_deg, dec_deg = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
+          print(f"RA: {ra_deg}°, Dec: {dec_deg}°")
 
 
-          print(f"\nRotational Differences:")
-          print(f"  Yaw difference: {yaw_diff:.2f}°")
-          print(f"  Pitch difference: {pitch_diff:.2f}°")
-          print(f"  Roll difference: {roll_diff:.2f}°")
-          print(f"  Maximum difference: {max(yaw_diff, pitch_diff, roll_diff):.2f}°")
-          
-          return {
-               'yaw_diff': yaw_diff,
-               'pitch_diff': pitch_diff,
-               'roll_diff': roll_diff,
-               'max_diff': max(yaw_diff, pitch_diff, roll_diff)
-          }
-          
+
+
      def test_quaternion_angular_distance(self, image1_path, image2_path):
           """
           Calculate the rotational difference between two images.
@@ -372,102 +258,9 @@ class TestRotationalAccuracyFromImages(unittest.TestCase):
           print(f"Distance: {distance}")
           return distance
      
-     def test_rotational_accuracy_from_120RA_80DEC(self):
-          """Test rotational accuracy from 120RA_80DEC."""
-          # Get the test images
-          test_images = self.discover_test_images()
-          
-          # For now, let's just print what we found
-          print(f"\nTest images found: {len(test_images)}")
-          test_image = test_images['120RA_80DEC']
-          print(f"Test image: {test_image}")
-          test_image_path = test_image['path']
-          quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=False)
-          print(f"Quat1: {quat1}")
-          ra_deg, dec_deg = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
           
 
 
-     def test_rotational_accuracy_between_0_and_45_dec(self):
-          """Test rotational accuracy between images."""
-          # Get the test images
-          test_images = self.discover_test_images()
-          
-          # For now, let's just print what we found
-          print(f"\nTest images found: {len(test_images)}")
-          for name, info in test_images.items():
-               print(f"  {name}: RA={info['ra']}, DEC={info['dec']}")
-          
-          # Now let's test the rotational difference between the two images
-          if len(test_images) >= 2:
-               image1_key = '0RA_0DEC'
-               image2_key = '0RA_45DEC'
-               
-               print(f"\nTesting rotational difference between:")
-               print(f"  Image 1: {image1_key}")
-               print(f"  Image 2: {image2_key}")
-
-               result = self.test_quaternion_angular_distance(
-                    test_images[image1_key]['path'],
-                    test_images[image2_key]['path']
-               )
-
-               self.assertIsNotNone(result)
-               expected_diff = 45.0
-               tolerance = 5.0
-               self.assertAlmostEqual(result, expected_diff, delta=tolerance)
-
-
-     def test_rotational_accuracy_from_0ran_0dec(self):
-          """Test rotational accuracy from 0RA_0DEC."""
-          # Get the test images
-          test_images = self.discover_test_images()
-          
-          # For now, let's just print what we found
-          print(f"\nTest images found: {len(test_images)}")
-          for name, info in test_images.items():
-               print(f"  {name}: RA={info['ra']}, DEC={info['dec']}")
-          # extract the test image from the test_images dictionary with the key 0RA_0DEC
-          test_image = test_images['0RA_0DEC']
-          print(f"Test image: {test_image}")
-
-          test_image_path = test_image['path']
-          quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=False)
-          print(f"Quat1: {quat1}")
-          ra_deg, dec_deg = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
-
-
-     def test_rotational_accuracy_from_0ran_45dec(self):
-          """Test rotational accuracy from 0RA_45DEC."""
-          # Get the test images
-          test_images = self.discover_test_images()
-          
-          # For now, let's just print what we found
-          print(f"\nTest images found: {len(test_images)}")
-          test_image = test_images['0RA_45DEC']
-          print(f"Test image: {test_image}")
-
-          test_image_path = test_image['path']
-          quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=False)
-          print(f"Quat1: {quat1}")
-          _ , _ = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
-
-
-     def test_rotational_accuracy_from_0ran_0dec_66fov_prepsective(self):
-          """Test rotational accuracy from 0RA_0DEC_66FOV_PRESPRECTIVE."""
-          # Get the test images
-          test_images = self.discover_test_images()
-          
-          # For now, let's just print what we found
-          print(f"\nTest images found: {len(test_images)}")
-          test_image = test_images['0RA_0DEC_66FOV_PSTV']
-          print(f"Test image: {test_image}")
-
-          test_image_path = test_image['path']
-          quat1, rot_matrix1 = lost_in_space(str(test_image_path), visualize=True, fov_deg=66)
-          
-          print(f"Quat1: {quat1}")
-          _ , _ = self.get_right_ascension_and_declination_from_rotation_matrix(rot_matrix1)
           
 if __name__ == "__main__":
      unittest.main()

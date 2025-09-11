@@ -7,3 +7,4 @@ runs/
 wheels_pi/
 venv2/
 venv
+src/catalog_pipeline/star_catalog_vmag_less_than_5.db

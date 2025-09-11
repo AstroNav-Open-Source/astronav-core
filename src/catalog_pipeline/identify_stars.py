@@ -10,6 +10,7 @@ from scipy.optimize import linear_sum_assignment  # Added for Hungarian algorith
 DB_PATH = os.path.join(os.path.dirname(__file__), 'star_catalog.db')
 DB_PATH_TEST = os.path.join(os.path.dirname(__file__), 'star_catalog_small_test.db')
 DB_PATH_TEST_500 = os.path.join(os.path.dirname(__file__), 'star_catalog_small_test_500_stars.db')
+DB_PATH_VMAG_LESS_THAN_5 = os.path.join(os.path.dirname(__file__), 'star_catalog_vmag_less_than_5.db')
 EARLY_SUBGRAPH_STAR_EXIT = 10000
 
 
@@ -21,7 +22,18 @@ def query_star_pairs(theta_obs, delta_theta, db_path=DB_PATH, limit=50):
               (theta_obs - delta_theta, theta_obs + delta_theta, theta_obs, limit))
     results = c.fetchall()
     conn.close()
-    return results
+    
+    # Sort by error in Python (least error first)
+    results_with_error = []
+    for star1_id, star2_id, angle in results:
+        error = abs(angle - theta_obs)
+        results_with_error.append((star1_id, star2_id, angle, error))
+    
+    # Sort by error ascending (least error first)
+    results_with_error.sort(key=lambda x: x[3])
+    
+    # Return only the requested limit, but keep the original 3-tuple format
+    return [(star1_id, star2_id, angle) for star1_id, star2_id, angle, error in results_with_error[:limit]]
 
 
 def angle_between(v1, v2):
@@ -30,7 +42,7 @@ def angle_between(v1, v2):
 from collections import defaultdict
 import itertools
 
-def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_TEST_500, limit=50):
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_VMAG_LESS_THAN_5, limit=50):
      """
      Identify stars based on triangle+pyramid voting.
      
@@ -42,9 +54,8 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
      Returns:
      - final_votes: dict {detected_star_idx: [(HIP_id, score), ...]}
      """
-     n = len(detected_vectors)
      # For debugging, limit number of stars used
-     detected_vectors = detected_vectors[:6]
+     n = len(detected_vectors)  # Update n to match the truncated length
      seen_tris = set()
      seen_pyramids = set()
      

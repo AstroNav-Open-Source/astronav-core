@@ -8,6 +8,7 @@ matplotlib>=3.5.0
 
 # Astronomy
 astropy>=5.0.0
+astroquery==0.4.10
 
 # YOLO object detection
 ultralytics>=8.0.0
