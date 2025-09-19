@@ -111,7 +111,8 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
                          candidate_pyramid = {i: A, j: B, k: C}
                          for d in [x for x in range(n) if x not in (i, j, k)]:
                               vd = detected_vectors[d]
-                              pyramids = compute_pyramid(candidate_pyramid, db_path, limit, seen_pyramids, vi, vj, vk, vd, d)
+                              pyramids = compute_pyramid(candidate_pyramid, db_path, limit, seen_pyramids, 
+                              vi, vj, vk, vd, d, angle_tolerance= 0.5)
                               if not pyramids:
                                    continue
                               for mapping in pyramids:

@@ -2,23 +2,29 @@ from pathlib import Path
 from catalog_pipeline.real_image_valuation import lost_in_space
 from image_pipeline.capture_star_vectors import visualize_results
 from typing import Optional
-DEFAULT_IMAGE_PATH = Path(__file__).parent / "photos" / "5star_pairs_center.jpeg"
+from config import get_config, get_config_value
 
 def capture_image():
     try:
         from take_image import take_image as tk
-        return tk()
+        return tk.take_image()
     except ImportError:
         print("[WARNING] Camera module not available. Using fallback image.")
         return None
 
-def process_star_image(use_camera=False, visualize=True):
+def process_star_image(use_camera=False, visualize=True, image_path=None):
+    # Load configuration
+    config = get_config()
+    
     if use_camera:
         image_path = capture_image()
         if image_path is None:
-            image_path = DEFAULT_IMAGE_PATH
+            # Fallback to config image path if camera fails
+            image_path = get_config_value(config, 'general.image_path', 'src/photos/5star_pairs_center.jpeg')
     else:
-        image_path = DEFAULT_IMAGE_PATH
+        # Use provided image_path or fallback to config
+        if image_path is None:
+            image_path = get_config_value(config, 'general.image_path', 'src/photos/5star_pairs_center.jpeg')
 
     if isinstance(image_path, str):
         image_path = Path(image_path)

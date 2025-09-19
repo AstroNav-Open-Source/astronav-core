@@ -1,0 +1,36 @@
+# AstroNav Configuration File
+# This file contains default settings for the AstroNav star tracker
+
+general:
+  use_camera: false          # Use camera for image capture (overridden by --capture flag)
+  visualize: false           # Show visualization windows during processing
+  image_path: "src/photos/5star_pairs_center.jpeg"  # Default image path when not using camera
+
+star_processing:
+  angle_tolerance: 0.3       # Angle tolerance for star matching (degrees)
+  identification_limit: 100   # Limit for star identification search
+  visualize_hip: true        # Show HIP star identification visualization
+  fov_degrees: 66.3          # Field of view in degrees
+
+star_detection:
+  threshold_val: 180         # Threshold value for star detection (0-255)
+  min_area: 15              # Minimum area for star detection (pixels)
+  max_area: 500             # Maximum area for star detection (pixels)
+
+imu:
+  enabled: true              # Enable IMU tracking
+  calibration_timeout: 30    # Maximum time to wait for IMU calibration (seconds)
+  update_interval: 0.25      # IMU update interval (seconds)
+
+tracking:
+  image_tracking: true       # Enable image-based tracking
+  imu_tracking: true         # Enable IMU-based tracking
+
+network:
+  udp_ip: "127.0.0.1"       # UDP IP for orientation publishing
+  udp_port: 12345           # UDP port for orientation publishing
+
+test_mode:
+  enabled: false             # Enable test mode (overridden by --test flag)
+  rotation_speed: 1.0        # Degrees per iteration in test mode
+  update_interval: 0.5       # Update interval in test mode (seconds)

@@ -10,7 +10,22 @@ from image_pipeline.capture_star_vectors import detect_stars
 from .identify_stars import identify_stars_from_vector, get_identified_star_info, visualize_star_identification
 from .radec_to_vec import radec_to_vec
 
-def lost_in_space(image_path, visualize=False, fov_deg=66.3):
+# Import config system
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from config import get_config, get_config_value
+
+def lost_in_space(image_path, visualize=False, fov_deg=None):
+     # Load configuration
+     config = get_config()
+     
+     # Use config values, but allow function parameters to override
+     if fov_deg is None:
+          fov_deg = get_config_value(config, 'star_processing.fov_degrees', 66.3)
+     
+     angle_tolerance = get_config_value(config, 'star_processing.angle_tolerance', 0.1)
+     identification_limit = get_config_value(config, 'star_processing.identification_limit', 40)
+     visualize_hip = get_config_value(config, 'star_processing.visualize_hip', True)
+          
      print(f"Processing image: {image_path}")
      img, thresh, star_data = detect_stars(image_path, visualize=visualize, fov_deg=fov_deg)
      print(f"Detected {len(star_data)} stars.")
@@ -20,9 +35,7 @@ def lost_in_space(image_path, visualize=False, fov_deg=66.3):
 
      detected_vectors = [star["vector"] for star in star_data[:MAX_OBSERVED_STAR_CALCS]]
 
-     angle_tolerance = 0.1  # degrees, can be tuned
-     matches = identify_stars_from_vector(detected_vectors, angle_tolerance=angle_tolerance,  limit=40)
-     visualize_hip = True
+     matches = identify_stars_from_vector(detected_vectors, angle_tolerance=angle_tolerance, limit=identification_limit)
      if visualize_hip:
           visualize_star_identification(image_path, star_data, matches)
      identified = get_identified_star_info(matches)

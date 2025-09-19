@@ -6,6 +6,10 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 from star_frame import StarFrame
 
+# Import config system
+sys.path.append(str(Path(__file__).parent.parent))
+from config import get_config, get_config_value
+
 def make_K_from_fov(w, h, fov_deg):
      """
      Build the camera intrinsic matrix from horizontal FOV.
@@ -59,11 +63,22 @@ def calculate_angular_distances(star_data):
      
      return angular_pairs
 
-def detect_stars(image_path, threshold_val=150, min_area=15, max_area=500, fov_deg= 66, visualize=False):
+def detect_stars(image_path, threshold_val=None, min_area=None, max_area=None, fov_deg=66, visualize=False):
      """
      Detect stars in an image and convert their positions to 3D unit vectors in camera coordinates.
      """
-     print(f"Detecting stars with fov_deg={fov_deg}")
+     # Load configuration
+     config = get_config()
+     
+     # Use config values if parameters not provided
+     if threshold_val is None:
+          threshold_val = get_config_value(config, 'star_detection.threshold_val', 180)
+     if min_area is None:
+          min_area = get_config_value(config, 'star_detection.min_area', 15)
+     if max_area is None:
+          max_area = get_config_value(config, 'star_detection.max_area', 500)
+     
+     print(f"Detecting stars with fov_deg={fov_deg}, threshold={threshold_val}, min_area={min_area}, max_area={max_area}")
      img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
      if img is None:
           raise FileNotFoundError(f"Image '{image_path}' not found.")
