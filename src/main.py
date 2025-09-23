@@ -15,15 +15,9 @@ if platform.system() == "Darwin":
 
 # from imu_readings import get_quaternion , calibrate
 
-def main(use_camera=False, image_path=None):
+def main():
      # Load configuration
      config = get_config()
-     
-     # Override config with function parameters if provided
-     if use_camera is not None:
-          config['general']['use_camera'] = use_camera
-     if image_path is not None:
-          config['general']['image_path'] = str(image_path)
      
      # Extract commonly used config values
      visualize = get_config_value(config, 'general.visualize', False)
@@ -48,7 +42,7 @@ def main(use_camera=False, image_path=None):
      image_path = get_config_value(config, 'general.image_path', 'src/photos/5star_pairs_center.jpeg')
      
      quaternion_star, rotation_matrix = star_processing.process_star_image(
-         use_camera=config['general']['use_camera'], 
+         use_camera=useCamera, 
          visualize=visualize,
          image_path=image_path
      )
@@ -61,7 +55,7 @@ def main(use_camera=False, image_path=None):
           print("Failed to process image.")
 
 #     delta_quaternion = calculate_delta_quaternion( quarterion_star, get_quaternion())
-     if config['general']['use_camera'] and imu_enabled:
+     if useCamera and imu_enabled:
                if useIMU:
                     from quaternion_calculations import quat2dict
                     Q_STAR_REF = quat2dict(quaternion_star)
@@ -85,15 +79,14 @@ def main(use_camera=False, image_path=None):
 
 if __name__ == "__main__":
      try:
-          if len(sys.argv) > 1 and sys.argv[1] == "--capture":
-               main(use_camera=True)
-          elif len(sys.argv) > 1 and sys.argv[1] == "--test":
+          # Load config to check if test mode is enabled
+          config = get_config()
+          test_mode_enabled = get_config_value(config, 'test_mode.enabled', False)
+          
+          if test_mode_enabled:
                from quaternion_calculations import quat_to_euler, quat2dict
                import numpy as np
-               import time
                
-               # Load config for test mode
-               config = get_config()
                rotation_speed = get_config_value(config, 'test_mode.rotation_speed', 1.0)
                test_update_interval = get_config_value(config, 'test_mode.update_interval', 0.5)
                
@@ -115,7 +108,7 @@ if __name__ == "__main__":
                     time.sleep(test_update_interval)
                     t += 1
           else:
-               main(use_camera=False)
+               main()
 
      except KeyboardInterrupt:
           print("\nShutting down...")

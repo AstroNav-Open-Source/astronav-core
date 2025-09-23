@@ -2,7 +2,7 @@
 # This file contains default settings for the AstroNav star tracker
 
 general:
-  use_camera: true           # Use camera for image capture (overridden by --capture flag)
+  use_camera: true           # Use camera for image capture
   visualize: false           # Show visualization windows during processing
   image_path: "src/photos/5star_pairs_center.jpeg"  # Default image path when not using camera
 
@@ -31,6 +31,6 @@ network:
   udp_port: 12345           # UDP port for orientation publishing
 
 test_mode:
-  enabled: false             # Enable test mode (overridden by --test flag)
+  enabled: false             # Enable test mode
   rotation_speed: 1.0        # Degrees per iteration in test mode
   update_interval: 0.5       # Update interval in test mode (seconds)
