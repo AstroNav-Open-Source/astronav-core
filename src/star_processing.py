@@ -4,12 +4,51 @@ from image_pipeline.capture_star_vectors import visualize_results
 from typing import Optional
 from config import get_config, get_config_value
 
-def capture_image():
+import subprocess
+from pathlib import Path
+import datetime
+
+
+def capture_image(width=2304, height=1296):
+    """
+    Launches rpicam-still in --keypress mode with fixed resolution.
+    Preview and capture run at the same resolution, so there's no pipeline re-init delay.
+    
+    Args:
+        width (int): capture width
+        height (int): capture height
+
+    Returns:
+        str | None: Path to saved image
+    """
+    output_dir = Path("photos").resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = output_dir / f"capture_{ts}.jpg"
+
+    print("[INFO] Launching rpicam-still with preview & capture locked to same resolution.")
+    print("       Click on preview window and press Enter to capture once.")
+    print("       Press Esc or close window to quit without saving.")
+
     try:
-        from take_image import take_image as tk
-        return tk.take_image()
-    except ImportError:
-        print("[WARNING] Camera module not available. Using fallback image.")
+        subprocess.run(
+            [
+                "rpicam-still",
+                "--keypress",      # wait for Enter in preview window
+                "-t", "0",         # run preview indefinitely
+                "-o", str(filename),
+                "--width", str(width),
+                "--height", str(height),
+                "--zsl"            # zero-shutter-lag buffer
+            ],
+            check=True,
+        )
+        print(f"[INFO] Saved {filename}")
+        return str(filename)
+
+    except subprocess.CalledProcessError:
+        print("[ERROR] rpicam-still failed or was cancelled.")
         return None
 
 def process_star_image(use_camera=False, visualize=True, image_path=None):
@@ -37,35 +76,4 @@ def process_star_image(use_camera=False, visualize=True, image_path=None):
 
 if __name__ == "__main__":
      print("Star Processing, testing...")
-
-# def capture_image():
-#     # Only import camera module when needed
-#     try:
-#         from take_image import take_image as tk
-#         filename = tk()
-#         return filename
-#     except ImportError:
-#         print("Camera module not available. You need to use this on the RBPi.")
-#         return None
-
-# def process_image(image_path=None):
-#     from image_pipeline.capture_star_vectors import visualize_results
-#     from catalog_pipeline.real_image_valuation import lost_in_space
-#     if image_path is None:
-#         image_path = DEFAULT_IMAGE_PATH
-#     elif isinstance(image_path, str):
-#         image_path = Path(image_path)
-    
-#     if not image_path.exists():
-#         raise FileNotFoundError(f"Image file not found: {image_path}")
-    
-#     # Use the lost_in_space function which handles everything:
-#     # - Detects stars
-#     # - Identifies them in catalog
-#     # - Calculates quaternion and rotation matrix
-#     try:
-#         quaternion, rotation_matrix = lost_in_space(str(image_path), visualize=True)
-#         return quaternion, rotation_matrix
-#     except Exception as e:
-#         print(f"Error processing image: {str(e)}")
-#         return None, None
+     capture_image()
