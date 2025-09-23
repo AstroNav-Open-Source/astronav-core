@@ -9,7 +9,7 @@ from typing import Dict, Any
 # Default configuration values
 DEFAULT_CONFIG = {
     "general": {
-        "use_camera": False,
+        "use_camera": True,
         "visualize": False,
         "image_path": "src/photos/5star_pairs_center.jpeg"
     },

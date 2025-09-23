@@ -2,7 +2,7 @@
 # This file contains default settings for the AstroNav star tracker
 
 general:
-  use_camera: false          # Use camera for image capture (overridden by --capture flag)
+  use_camera: true           # Use camera for image capture (overridden by --capture flag)
   visualize: false           # Show visualization windows during processing
   image_path: "src/photos/5star_pairs_center.jpeg"  # Default image path when not using camera
 

@@ -31,9 +31,10 @@ def main(use_camera=False, image_path=None):
      imu_update_interval = get_config_value(config, 'imu.update_interval', 0.25)
      useIMU = get_config_value(config, 'tracking.imu_tracking', True)
      useIMGTracking = get_config_value(config, 'tracking.image_tracking', True)
+     useCamera = get_config_value(config, 'general.use_camera', False)
      
      timer = time.time()
-     if config['general']['use_camera']:
+     if useCamera and imu_enabled:
           print("Starting IMU Daemon...")
           start_imu_daemon()
           print("Waiting for IMU to calibrate...")
@@ -60,7 +61,7 @@ def main(use_camera=False, image_path=None):
           print("Failed to process image.")
 
 #     delta_quaternion = calculate_delta_quaternion( quarterion_star, get_quaternion())
-     if config['general']['use_camera']:
+     if config['general']['use_camera'] and imu_enabled:
                if useIMU:
                     from quaternion_calculations import quat2dict
                     Q_STAR_REF = quat2dict(quaternion_star)
