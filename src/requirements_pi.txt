@@ -1,57 +1,32 @@
-astropy==6.0.1
-astropy-iers-data==0.2025.7.21.0.41.39
+# Core scientific computing
+numpy>=1.20.0
+scipy>=1.7.0
+
+# Computer vision and image processing
+opencv-python>=4.5.0
+matplotlib>=3.5.0
+Pillow>=8.0.0
+
+# Astronomy
+astropy>=5.0.0
 astroquery==0.4.10
-backports.tarfile==1.2.0
-beautifulsoup4==4.13.4
-certifi==2025.7.14
-charset-normalizer==3.4.2
-contourpy==1.3.0
-cycler==0.12.1
-filelock==3.18.0
-fonttools==4.59.0
-fsspec==2025.7.0
-html5lib==1.1
-idna==3.10
-imageio==2.37.0
-importlib_metadata==8.7.0
-importlib_resources==6.5.2
-jaraco.classes==3.4.0
-jaraco.context==6.0.1
-jaraco.functools==4.2.1
-Jinja2==3.1.6
-keyring==25.6.0
-kiwisolver==1.4.7
-lazy_loader==0.4
-MarkupSafe==3.0.2
-matplotlib==3.9.4
-more-itertools==10.7.0
-mpmath==1.3.0
-networkx==3.2.1
-numpy==1.26.4
-opencv-python==4.9.0.80
-packaging==25.0
-pandas==2.3.1
-pillow==11.3.0
-psutil==7.0.0
-py-cpuinfo==9.0.0
-pyerfa==2.0.1.5
-pyparsing==3.2.3
-python-dateutil==2.9.0.post0
-pytz==2025.2
-pyvo==1.7
-PyYAML==6.0.2
-requests==2.32.4
-scikit-image==0.24.0
-scipy==1.13.1
-six==1.17.0
-soupsieve==2.7
-sympy==1.14.0
-tifffile==2024.8.30
-tqdm==4.67.1
-typing_extensions==4.14.1
-tzdata==2025.2
-ultralytics==8.3.170
-ultralytics-thop==2.0.14
-urllib3==2.5.0
-webencodings==0.5.1
-zipp==3.23.0
+
+# YOLO object detection
+ultralytics>=8.0.0
+
+# Configuration
+PyYAML>=6.0.0
+
+# Progress bars (used by ultralytics)
+tqdm>=4.60.0
+
+# Raspberry Pi specific packages
+# Uncomment these only if running on Raspberry Pi with camera and IMU
+# picamera2>=0.3.0
+# adafruit-circuitpython-bno055>=1.0.0
+
+# Optional: For advanced image processing (if needed)
+# scikit-image>=0.19.0
+
+# Optional: For Kalman filtering (if needed for tracking)
+# filterpy>=1.4.5

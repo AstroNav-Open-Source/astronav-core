@@ -42,7 +42,7 @@ def angle_between(v1, v2):
 from collections import defaultdict
 import itertools
 
-def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB_PATH_VMAG_LESS_THAN_5, limit=50):
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.2, db_path=DB_PATH, limit=50):
      """
      Identify stars based on triangle+pyramid voting.
      
@@ -109,6 +109,19 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
                          seen_tris.add(tri_key)
                          print(f"DEBUG: Consistent catalog triangle found: {tri_key}")
                          candidate_pyramid = {i: A, j: B, k: C}
+
+                         # Compute triangle RMS scores
+                         candidate_triangle = candidate_pyramid 
+                         obs_vecs3 = {idx: detected_vectors[idx] for idx in candidate_triangle.keys()}
+                         tri_scores, tri_rms, tri_rms_global, tri_max_edge = compute_rms_scores(
+                              candidate_triangle, obs_vecs3, db_path
+                         )
+
+                         TRI_RMS_MAX = 0.5  # degrees, tune this
+                         if tri_rms_global <= TRI_RMS_MAX:
+                              for obs_idx, hip in candidate_triangle.items():
+                                   support[obs_idx][hip] += 1.0 * tri_scores[obs_idx]
+
                          for d in [x for x in range(n) if x not in (i, j, k)]:
                               vd = detected_vectors[d]
                               pyramids = compute_pyramid(candidate_pyramid, db_path, limit, seen_pyramids, 
@@ -117,7 +130,7 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.1, db_path=DB
                                    continue
                               for mapping in pyramids:
                                    obs_vectors = {idx: detected_vectors[idx] for idx in mapping.keys()}
-                                   star_scores = compute_rms_scores(mapping, obs_vectors, db_path)
+                                   star_scores, star_rms, global_rms, max_edge = compute_rms_scores(mapping, obs_vectors, db_path)
                                    for obs_idx, hip in mapping.items():
                                         support[obs_idx][hip] += star_scores[obs_idx]
      
@@ -177,54 +190,75 @@ def compute_gaussian_logscore(mapping, obs_vectors, db_path, sigma=0.2):
 
     return per_star_log, pyr_log
 
-def compute_rms_scores(mapping, obs_vectors, db_path, epsilon=1e-2):
+import math
+from collections import defaultdict
+
+def compute_rms_scores(mapping, obs_vectors, db_path, epsilon=1e-6, return_details=True):
      """
-     Compute per-star residual-based scores for a candidate pyramid.
+     Compute residual-based RMS scores for a candidate triangle or pyramid.
 
      Args:
-          mapping: dict {obs_idx: hip_id}, e.g. {0: 34444, 1: 39863, 2: 35264, 3: 45270}
-          obs_vectors: dict {obs_idx: np.array}, observed unit vectors for each index
-          db_path: path to catalog database (must have star pairs with HIPs + angle)
-          epsilon: small term to avoid division by zero
+          mapping: dict {obs_idx: hip_id}
+          obs_vectors: dict {obs_idx: np.array}, observed unit vectors
+          db_path: path to catalog database (HIP-HIP angular separations)
+          epsilon: small constant to avoid div/0
+          return_details: if True, return (star_score, star_rms, global_rms, max_edge)
 
      Returns:
-          star_score: dict {obs_idx: score} with accumulated edge weights
+          if return_details=True:
+               star_score: {obs_idx -> 1/(rms+eps)}
+               star_rms:   {obs_idx -> rms residual in degrees}
+               global_rms: RMS across all edges in mapping (degrees)
+               max_edge:   maximum single residual (degrees)
+          else:
+               star_score only (dict)
      """
-     residuals = {obs_idx: [] for obs_idx in mapping.keys()}
-     obs_indices = list(mapping.keys())
 
-     # Step 1. Build all edges (pairs of observed indices)
-     edge_pairs = [(obs_indices[i], obs_indices[j]) 
-                    for i in range(len(obs_indices)) 
+     obs_indices = list(mapping.keys())
+     edge_pairs = [(obs_indices[i], obs_indices[j])
+                    for i in range(len(obs_indices))
                     for j in range(i+1, len(obs_indices))]
+
+     residuals = defaultdict(list)
+     edge_residuals = []
 
      for (obs_u, obs_v) in edge_pairs:
           hip_u, hip_v = mapping[obs_u], mapping[obs_v]
-
-          # --- measured angle
           vu, vv = obs_vectors[obs_u], obs_vectors[obs_v]
-          meas_angle = angle_between(vu, vv)  # in degrees
 
-          # --- catalog angle
+          # measured angle (degrees) -- make sure angle_between returns degrees!
+          meas_angle = angle_between(vu, vv)
+
+          # catalog angle (degrees)
           cat_angle = get_angular_distance_between_stars(hip_u, hip_v, db_path=db_path)
-          # query_catalog_angle should return precomputed HIP→HIP angular separation in degrees
 
-          # --- residual and weight
-          residual = abs(meas_angle - cat_angle)
-          # --- append residual to both stars
-          residuals[obs_u].append(residual)
-          residuals[obs_v].append(residual)
+          # residual (degrees)
+          r = abs(meas_angle - cat_angle)
+          residuals[obs_u].append(r)
+          residuals[obs_v].append(r)
+          edge_residuals.append(r)
 
-     # Convert residual lists → RMS → score
-     star_score = {}
+     star_score, star_rms = {}, {}
      for obs_idx, res_list in residuals.items():
           if not res_list:
+               star_rms[obs_idx] = float("inf")
                star_score[obs_idx] = 0.0
-               continue
-          rms = (sum(r**2 for r in res_list) / len(res_list))**0.5
-          star_score[obs_idx] = 1.0 / (rms + epsilon)
+          else:
+               rms = math.sqrt(sum(r**2 for r in res_list) / len(res_list))
+               star_rms[obs_idx] = rms
+               star_score[obs_idx] = 1.0 / (rms + epsilon)
 
-     return star_score
+     if not return_details:
+          return star_score
+
+     if edge_residuals:
+          global_rms = math.sqrt(sum(r**2 for r in edge_residuals) / len(edge_residuals))
+          max_edge = max(edge_residuals)
+     else:
+          global_rms, max_edge = float("inf"), float("inf")
+
+     return star_score, star_rms, global_rms, max_edge
+
 
 def compute_pyramid(candidate_pyramide, db_path, limit, seen_pyramids, vi, vj, vk, vd, d, angle_tolerance=0.5):
      """
