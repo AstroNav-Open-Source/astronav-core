@@ -3,7 +3,7 @@
 
 general:
   use_camera: true           # Use camera for image capture
-  visualize: false           # Show visualization windows during processing
+  visualize: true           # Show visualization windows during processing
   image_path: "src/photos/5star_pairs_center.jpeg"  # Default image path when not using camera
 
 star_processing:

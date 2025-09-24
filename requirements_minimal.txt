@@ -11,7 +11,7 @@ astropy>=5.0.0
 astroquery==0.4.10
 
 # YOLO object detection
-ultralytics>=8.0.0
+# ultralytics>=8.0.0
 
 # Optional: For Raspberry Pi camera (only needed on Pi)
 # picamera2>=0.3.0

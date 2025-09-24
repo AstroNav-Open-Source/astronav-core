@@ -42,7 +42,7 @@ def angle_between(v1, v2):
 from collections import defaultdict
 import itertools
 
-def identify_stars_from_vector(detected_vectors, angle_tolerance=0.2, db_path=DB_PATH, limit=50):
+def identify_stars_from_vector(detected_vectors, angle_tolerance=0.2, db_path=DB_PATH_VMAG_LESS_THAN_5, limit=50):
      """
      Identify stars based on triangle+pyramid voting.
      
