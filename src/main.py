@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 import os
 from datetime import datetime
-from imu_readings import *
+from imu_mpu20600 import *
 import time
 from star_processing import process_star_image, capture_image 
 from quaternion_calculations import propagate_orientation , quat_to_euler
