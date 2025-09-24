@@ -55,7 +55,9 @@ def identify_stars_from_vector(detected_vectors, angle_tolerance=0.2, db_path=DB
      - final_votes: dict {detected_star_idx: [(HIP_id, score), ...]}
      """
      # For debugging, limit number of stars used
+     detected_vectors = detected_vectors[:7]
      n = len(detected_vectors)  # Update n to match the truncated length
+
      seen_tris = set()
      seen_pyramids = set()
      

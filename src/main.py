@@ -9,9 +9,10 @@ from quaternion_calculations import propagate_orientation , quat_to_euler
 import star_processing
 from config import get_config, get_config_value
 
-import platform
-if platform.system() == "Darwin":
-     from publish_udp import OrientationPublisher, MAC_PORT, MAC_IP
+#import platform
+#if platform.system() == "Darwin":
+#     from publish_udp import OrientationPublisher, MAC_PORT, MAC_IP
+#     print("Imported Oritenation Publisher")
 
 # from imu_readings import get_quaternion , calibrate
 
@@ -23,12 +24,11 @@ def main():
      visualize = get_config_value(config, 'general.visualize', False)
      imu_enabled = get_config_value(config, 'imu.enabled', True)
      imu_update_interval = get_config_value(config, 'imu.update_interval', 0.25)
-     useIMU = get_config_value(config, 'tracking.imu_tracking', True)
      useIMGTracking = get_config_value(config, 'tracking.image_tracking', True)
      useCamera = get_config_value(config, 'general.use_camera', False)
      
      timer = time.time()
-     if useCamera and imu_enabled:
+     if imu_enabled:
           print("Starting IMU Daemon...")
           start_imu_daemon()
           print("Waiting for IMU to calibrate...")
@@ -55,27 +55,24 @@ def main():
           print("Failed to process image.")
 
 #     delta_quaternion = calculate_delta_quaternion( quarterion_star, get_quaternion())
-     if useCamera and imu_enabled:
-               if useIMU:
-                    from quaternion_calculations import quat2dict
-                    Q_STAR_REF = quat2dict(quaternion_star)
-                    Q_IMU_REF  = get_latest_quaterlion()   
- 
-                    publisher = OrientationPublisher(mac_ip=MAC_IP, mac_port=MAC_PORT)
-                    while True:
-                         Q_IMU_CURR = get_latest_quaterlion()  
-                         Q_BODY_CURR = propagate_orientation(Q_STAR_REF, Q_IMU_REF, Q_IMU_CURR)
-                         yaw, pitch, roll = quat_to_euler(Q_BODY_CURR)
-                         print(
-                              f"Quaternion : {Q_BODY_CURR}   |   "
-                              f"Yaw ψ={yaw:6.1f}°  Pitch θ={pitch:6.1f}°  Roll φ={roll:6.1f}°"
-                         )
-                         publisher.send_quaternion(Q_BODY_CURR["w"], Q_BODY_CURR["x"], Q_BODY_CURR["y"], Q_BODY_CURR["z"])
-                         time.sleep(imu_update_interval)
-               if useIMGTracking:
-                    pass
-                    #put your tracking coder= calls here:
-                    #CODE... 
+     if imu_enabled:
+          from quaternion_calculations import quat2dict
+          from publish_udp import OrientationPublisher, MAC_PORT, MAC_IP
+          Q_STAR_REF = quat2dict(quaternion_star)
+          Q_IMU_REF  = get_latest_quaterlion()   
+          print(f"Latest Quaterlion {Q_IMU_REF}")
+          publisher = OrientationPublisher(mac_ip=MAC_IP, mac_port=MAC_PORT)
+          while True:
+               Q_IMU_CURR = get_latest_quaterlion()  
+               Q_BODY_CURR = propagate_orientation(Q_STAR_REF, Q_IMU_REF, Q_IMU_CURR)
+               yaw, pitch, roll = quat_to_euler(Q_BODY_CURR)
+               print(
+                    f"Quaternion : {Q_BODY_CURR}   |   "
+                    f"Yaw ψ={yaw:6.1f}°  Pitch θ={pitch:6.1f}°  Roll φ={roll:6.1f}°"
+               )
+               publisher.send_quaternion(Q_BODY_CURR["w"], Q_BODY_CURR["x"], Q_BODY_CURR["y"], Q_BODY_CURR["z"])
+               time.sleep(imu_update_interval)
+
 
 if __name__ == "__main__":
      try:
@@ -86,6 +83,7 @@ if __name__ == "__main__":
           if test_mode_enabled:
                from quaternion_calculations import quat_to_euler, quat2dict
                import numpy as np
+               from publish_udp import OrientationPublisher, MAC_PORT, MAC_IP
                
                rotation_speed = get_config_value(config, 'test_mode.rotation_speed', 1.0)
                test_update_interval = get_config_value(config, 'test_mode.update_interval', 0.5)
