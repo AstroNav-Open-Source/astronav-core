@@ -3,13 +3,13 @@
 
 general:
   use_camera: false           # Use camera for image capture
-  visualize: true           # Show visualization windows during processing
+  visualize: false           # Show visualization windows during processing
   image_path: "src/photos/5star_pairs_center.jpeg"  # Default image path when not using camera
 
 star_processing:
   angle_tolerance: 0.3       # Angle tolerance for star matching (degrees)
   identification_limit: 100   # Limit for star identification search
-  visualize_hip: true        # Show HIP star identification visualization
+  visualize_hip: false        # Show HIP star identification visualization
   fov_degrees: 66.3          # Field of view in degrees
 
 star_detection:
@@ -27,7 +27,7 @@ tracking:
   imu_tracking: true         # Enable IMU-based tracking
 
 network:
-  udp_ip: "192.168.88.194"       # UDP IP for orientation publishing
+  udp_ip: "192.168.0.2"       # UDP IP for orientation publishing
   udp_port: 9001           # UDP port for orientation publishing
 
 test_mode:
