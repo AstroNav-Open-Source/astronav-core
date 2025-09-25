@@ -67,6 +67,11 @@ def process_star_image(use_camera=False, visualize=True, image_path=None):
 
     if isinstance(image_path, str):
         image_path = Path(image_path)
+        # If the path is relative, make it relative to the project root
+        if not image_path.is_absolute():
+            # Get the project root (parent of src directory)
+            project_root = Path(__file__).parent.parent
+            image_path = project_root / image_path
 
     if not image_path.exists():
         raise FileNotFoundError(f"Image file not found: {image_path}")
