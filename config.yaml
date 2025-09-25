@@ -2,7 +2,7 @@
 # This file contains default settings for the AstroNav star tracker
 
 general:
-  use_camera: true           # Use camera for image capture
+  use_camera: false           # Use camera for image capture
   visualize: true           # Show visualization windows during processing
   image_path: "src/photos/5star_pairs_center.jpeg"  # Default image path when not using camera
 
@@ -20,7 +20,7 @@ star_detection:
 imu:
   enabled: true              # Enable IMU tracking
   calibration_timeout: 30    # Maximum time to wait for IMU calibration (seconds)
-  update_interval: 0.25      # IMU update interval (seconds)
+  update_interval: 0.5      # IMU update interval (seconds)
 
 tracking:
   image_tracking: true       # Enable image-based tracking
